@@ -74,6 +74,441 @@ HIDDEN_REQ_TYPES = {
 AUTO_FILLED_ARGS = {"single_location"}
 
 # ===========================================================================
+# MITRE ATT&CK mappings
+# ===========================================================================
+
+# Technique ID → human-readable name
+MITRE_TECHNIQUES: Dict[str, str] = {
+    # ── Credential Access ────────────────────────────────────────────────────
+    "T1003":     "OS Credential Dumping",
+    "T1003.001": "OS Credential Dumping: LSASS Memory",
+    "T1003.002": "OS Credential Dumping: SAM",
+    "T1003.004": "OS Credential Dumping: LSA Secrets",
+    "T1003.005": "OS Credential Dumping: Cached Domain Credentials",
+    "T1056.001": "Input Capture: Keylogging",
+    "T1552.001": "Unsecured Credentials: Credentials In Files",
+    "T1556.001": "Modify Auth Process: Domain Controller Authentication",
+    # ── Defence Evasion ──────────────────────────────────────────────────────
+    "T1014":     "Rootkit",
+    "T1027":     "Obfuscated Files or Information",
+    "T1027.007": "Obfuscated Files: Dynamic API Resolution",
+    "T1036":     "Masquerading",
+    "T1036.005": "Masquerading: Match Legitimate Name or Location",
+    "T1070":     "Indicator Removal",
+    "T1070.004": "Indicator Removal: File Deletion",
+    "T1112":     "Modify Registry",
+    "T1140":     "Deobfuscate/Decode Files or Information",
+    "T1562.001": "Impair Defenses: Disable or Modify Tools",
+    "T1562.006": "Impair Defenses: Indicator Blocking",
+    "T1564.001": "Hide Artifacts: Hidden Files and Directories",
+    "T1564.004": "Hide Artifacts: NTFS File Attributes (ADS)",
+    "T1622":     "Debugger Evasion",
+    # ── Discovery ────────────────────────────────────────────────────────────
+    "T1007":     "System Service Discovery",
+    "T1012":     "Query Registry",
+    "T1016":     "System Network Configuration Discovery",
+    "T1049":     "System Network Connections Discovery",
+    "T1057":     "Process Discovery",
+    "T1069":     "Permission Groups Discovery",
+    "T1082":     "System Information Discovery",
+    "T1083":     "File and Directory Discovery",
+    "T1518":     "Software Discovery",
+    # ── Execution ────────────────────────────────────────────────────────────
+    "T1059":     "Command and Scripting Interpreter",
+    "T1059.001": "Command and Scripting Interpreter: PowerShell",
+    "T1059.003": "Command and Scripting Interpreter: Windows Command Shell",
+    "T1059.004": "Command and Scripting Interpreter: Unix Shell",
+    "T1106":     "Native API",
+    "T1129":     "Shared Modules",
+    # ── Hijack Execution Flow ────────────────────────────────────────────────
+    "T1574":     "Hijack Execution Flow",
+    "T1574.001": "Hijack Execution Flow: DLL Search Order Hijacking",
+    "T1574.002": "Hijack Execution Flow: DLL Side-Loading",
+    "T1574.006": "Hijack Execution Flow: Dynamic Linker Hijacking",
+    # ── Impact ───────────────────────────────────────────────────────────────
+    "T1486":     "Data Encrypted for Impact",
+    # ── Collection ───────────────────────────────────────────────────────────
+    "T1005":     "Data from Local System",
+    # ── Lateral Movement ─────────────────────────────────────────────────────
+    "T1021":     "Remote Services",
+    "T1563":     "Remote Service Session Hijacking",
+    # ── Persistence ──────────────────────────────────────────────────────────
+    "T1053.005": "Scheduled Task/Job: Scheduled Task",
+    "T1543.003": "Create or Modify System Process: Windows Service",
+    "T1546.011": "Event Triggered Execution: Application Shimming",
+    "T1547.001": "Boot or Logon Autostart: Registry Run Keys / Startup Folder",
+    "T1542.003": "Pre-OS Boot: Bootkit",
+    # ── Privilege Escalation ─────────────────────────────────────────────────
+    "T1055":     "Process Injection",
+    "T1055.001": "Process Injection: DLL Injection",
+    "T1055.002": "Process Injection: Portable Executable Injection",
+    "T1055.003": "Process Injection: Thread Execution Hijacking",
+    "T1055.012": "Process Injection: Process Hollowing",
+    "T1055.015": "Process Injection: ListPlanting / Process Ghosting",
+    "T1068":     "Exploitation for Privilege Escalation",
+    "T1134":     "Access Token Manipulation",
+    "T1620":     "Reflective Code Loading",
+    # ── Command and Control ──────────────────────────────────────────────────
+    "T1071":     "Application Layer Protocol (C2)",
+    "T1105":     "Ingress Tool Transfer",
+    # ── Credential Access / Subvert Trust ────────────────────────────────────
+    "T1218":     "System Binary Proxy Execution",
+    "T1553":     "Subvert Trust Controls",
+    "T1553.004": "Subvert Trust Controls: Install Root Certificate",
+    # ── Misc ─────────────────────────────────────────────────────────────────
+    "T1078":     "Valid Accounts",
+}
+
+# Plugin name segment(s) → list of MITRE technique IDs.
+# Keys are matched against the dot-separated segments of a plugin's full name
+# (e.g. "hashdump" matches both "windows.hashdump" and "windows.registry.hashdump").
+# These encode what adversary behaviour the plugin *detects evidence of*, NOT what
+# the plugin is doing itself.  Plugins that are pure forensic infrastructure
+# (info, crashinfo, statistics, virtmap, poolscanner, etc.) are intentionally
+# absent — they have no meaningful ATT&CK adversary-technique mapping.
+PLUGIN_MITRE_MAP: Dict[str, List[str]] = {
+    # ── Process discovery ───────────────────────────────────────────────────
+    "pslist":               ["T1057", "T1036.005"],
+    "psscan":               ["T1057", "T1014", "T1036"],
+    "pstree":               ["T1057", "T1059.001", "T1059.003", "T1036.005"],
+    "psxview":              ["T1057", "T1014"],
+    "psaux":                ["T1057"],
+    "pidhashtable":         ["T1057"],
+    "proc":                 ["T1057"],
+    "pscallstack":          ["T1057", "T1055"],
+    # ── Process injection / code injection / hollowing ──────────────────────
+    "malfind":              ["T1055", "T1055.001", "T1055.002", "T1055.012",
+                             "T1620", "T1027.007"],
+    "hollowprocesses":      ["T1055.012", "T1055"],
+    "processghosting":      ["T1055.015", "T1055", "T1014"],
+    "ptrace":               ["T1055"],
+    "pebmasquerade":        ["T1036.005", "T1055"],
+    "suspicious_threads":   ["T1055", "T1055.003"],
+    "orphan_kernel_threads":["T1055", "T1014"],
+    "debugregisters":       ["T1622", "T1055"],
+    "vmaregexscan":         ["T1055", "T1027"],
+    "vadinfo":              ["T1055", "T1620", "T1140"],
+    "vadwalk":              ["T1055", "T1620"],
+    "vadregexscan":         ["T1055", "T1027"],
+    "vadyarascan":          ["T1055", "T1027", "T1059"],
+    "vmayarascan":          ["T1055", "T1027", "T1005"],
+    "threads":              ["T1055", "T1055.003"],
+    "thrdscan":             ["T1055", "T1055.003", "T1055.004"],
+    "suspended_threads":    ["T1055"],
+    "proc_maps":            ["T1055", "T1620"],
+    "elfs":                 ["T1083"],
+    "memmap":               ["T1055", "T1620", "T1005"],
+    "pedump":               ["T1055", "T1620", "T1005"],
+    "pe_symbols":           ["T1027.007", "T1055"],
+    # ── Credential dumping ──────────────────────────────────────────────────
+    "hashdump":             ["T1003", "T1003.002"],
+    "cachedump":            ["T1003", "T1003.005"],
+    "lsadump":              ["T1003.004"],
+    "check_creds":          ["T1003"],
+    "skeleton_key_check":   ["T1556.001"],
+    "truecrypt":            ["T1552.001", "T1027", "T1486"],
+    # ── Registry ────────────────────────────────────────────────────────────
+    "hivelist":             ["T1012"],
+    "hivescan":             ["T1012", "T1112"],
+    "printkey":             ["T1012", "T1547.001", "T1112"],
+    "userassist":           ["T1012", "T1059"],
+    "getcellroutine":       ["T1014", "T1562.001"],
+    "certificates":         ["T1553.004"],
+    "amcache":              ["T1059", "T1218", "T1036"],
+    "shimcachemem":         ["T1546.011", "T1059", "T1218"],
+    "scheduled_tasks":      ["T1053.005"],
+    # ── Command / shell ─────────────────────────────────────────────────────
+    "cmdline":              ["T1059", "T1059.001", "T1059.003", "T1218", "T1027"],
+    "cmdscan":              ["T1059", "T1059.003", "T1562"],
+    "consoles":             ["T1059", "T1059.003", "T1105", "T1057"],
+    "bash":                 ["T1059.004"],
+    "joblinks":             ["T1059"],
+    "kthreads":             ["T1059"],
+    # ── Network / lateral movement ──────────────────────────────────────────
+    "netscan":              ["T1049", "T1071", "T1021"],
+    "netstat":              ["T1049", "T1071", "T1021"],
+    "sockstat":             ["T1049"],
+    "sockscan":             ["T1049"],
+    "ip":                   ["T1016"],
+    "ifconfig":             ["T1016"],
+    "handles":              ["T1083", "T1016", "T1057", "T1012", "T1082"],
+    "sessions":             ["T1563", "T1078"],
+    # ── Rootkit / defence evasion ────────────────────────────────────────────
+    "ssdt":                 ["T1014", "T1562.001"],
+    "callbacks":            ["T1014"],
+    "check_afinfo":         ["T1014"],
+    "check_idt":            ["T1014"],
+    "check_modules":        ["T1014"],
+    "check_syscall":        ["T1014"],
+    "check_sysctl":         ["T1014"],
+    "check_trap_table":     ["T1014"],
+    "hidden_modules":       ["T1014"],
+    "modxview":             ["T1014"],
+    "modscan":              ["T1014"],
+    "modules":              ["T1014", "T1543.003"],
+    "module_extract":       ["T1014"],
+    "lsmod":                ["T1082", "T1014"],
+    "timers":               ["T1014", "T1543.003"],
+    "kauth_listeners":      ["T1014"],
+    "kauth_scopes":         ["T1014"],
+    "socket_filters":       ["T1014"],
+    "netfilter":            ["T1014"],
+    "trustedbsd":           ["T1553"],
+    "ebpf":                 ["T1014", "T1055"],
+    "devicetree":           ["T1014"],
+    "driverirp":            ["T1014", "T1543.003"],
+    "driverscan":           ["T1014", "T1543.003"],
+    "drivermodule":         ["T1014"],
+    "unloadedmodules":      ["T1014", "T1070"],
+    "unhooked_system_calls":["T1106", "T1055", "T1562.001"],
+    "direct_system_calls":  ["T1106", "T1055", "T1562.001"],
+    "indirect_system_calls":["T1106", "T1055", "T1562.001"],
+    "etwpatch":             ["T1562.006", "T1562.001"],
+    "ftrace":               ["T1014", "T1056.001"],
+    "perf_events":          ["T1014"],
+    "tracepoints":          ["T1014"],
+    "tracing":              ["T1014"],
+    # ── Keylogging ──────────────────────────────────────────────────────────
+    "keyboard_notifiers":   ["T1056.001"],
+    "tty_check":            ["T1056.001", "T1014"],
+    # ── Privilege / token ───────────────────────────────────────────────────
+    "privileges":           ["T1134"],
+    "getsids":              ["T1069", "T1134"],
+    "getservicesids":       ["T1069"],
+    "capabilities":         ["T1134", "T1068"],
+    # ── Persistence / services ──────────────────────────────────────────────
+    "svcscan":              ["T1007", "T1543.003"],
+    "svclist":              ["T1007", "T1543.003"],
+    "svcdiff":              ["T1543.003"],
+    # ── DLL / module hijacking ──────────────────────────────────────────────
+    "dlllist":              ["T1055.001", "T1055", "T1574", "T1129"],
+    "ldrmodules":           ["T1055.001", "T1055", "T1574.001"],
+    "iat":                  ["T1574", "T1055", "T1027.007"],
+    "library_list":         ["T1574.006"],
+    # ── File / MFT / data collection ────────────────────────────────────────
+    "filescan":             ["T1083", "T1005"],
+    "mftscan":              ["T1083", "T1070.004", "T1564.001", "T1564.004"],
+    "dumpfiles":            ["T1005"],
+    "lsof":                 ["T1083", "T1049"],
+    "list_files":           ["T1083"],
+    "vfsevents":            ["T1083"],
+    "strings":              ["T1027", "T1059", "T1071"],
+    "pagecache":            ["T1005"],
+    "regexscan":            ["T1005"],
+    "symlinkscan":          ["T1083", "T1564.001"],
+    "mutantscan":           ["T1071", "T1105"],
+    "mountinfo":            ["T1082", "T1083"],
+    "mount":                ["T1082"],
+    # ── System information discovery (adversary-reachable data) ─────────────
+    "envars":               ["T1082", "T1059"],
+    "iomem":                ["T1082"],
+    "kallsyms":             ["T1082"],
+    "kmsg":                 ["T1082"],
+    "boottime":             ["T1082"],
+    "vmcoreinfo":           ["T1082"],
+    "desktops":             ["T1082"],
+    "deskscan":             ["T1082"],
+    "windowstations":       ["T1082"],
+    "dmesg":                ["T1082"],
+    "kevents":              ["T1082"],
+    "fbdev":                ["T1082"],
+    "bigpools":             ["T1082", "T1014"],
+    "timeliner":            ["T1082"],
+    # ── Masquerading ────────────────────────────────────────────────────────
+    "verinfo":              ["T1036"],
+    "process_spoofing":     ["T1036", "T1036.005"],
+    # ── Bootkit ─────────────────────────────────────────────────────────────
+    "mbrscan":              ["T1542.003"],
+    # ── Discovery / scanning ────────────────────────────────────────────────
+    "yarascan":             ["T1518", "T1027"],
+    # ── No ATT&CK mapping (forensic infrastructure only) ────────────────────
+    # info, crashinfo, statistics, virtmap, poolscanner, kpcrs,
+    # pe_symbols (infrastructure), configwriter, layerwriter,
+    # isfinfo, frameworkinfo, banners, vmscan — intentionally omitted.
+}
+
+# Threat actor/group → MITRE technique IDs they are known to use in the wild.
+# Sources: MITRE ATT&CK Groups, published threat reports.
+THREAT_ACTORS: Dict[str, List[str]] = {
+    "APT1 (Comment Crew / Unit 61398)":
+        ["T1059", "T1082", "T1057", "T1083", "T1049", "T1012"],
+    "APT28 (Fancy Bear / Sofacy / Pawn Storm)":
+        ["T1055", "T1059", "T1059.001", "T1082", "T1003", "T1014",
+         "T1547.001", "T1574", "T1027"],
+    "APT29 (Cozy Bear / The Dukes)":
+        ["T1055.012", "T1059", "T1059.001", "T1082", "T1003", "T1003.001",
+         "T1547.001", "T1027", "T1620"],
+    "APT32 (OceanLotus / Cobalt Kitty)":
+        ["T1055", "T1059", "T1082", "T1574.001", "T1027"],
+    "APT38 / Lazarus Group (Hidden Cobra)":
+        ["T1055", "T1059", "T1082", "T1003", "T1014", "T1486", "T1036",
+         "T1620"],
+    "APT41 (Winnti / BARIUM / Double Dragon)":
+        ["T1055", "T1059", "T1003", "T1082", "T1014", "T1053.005",
+         "T1574", "T1106"],
+    "BlackCat / ALPHV":
+        ["T1486", "T1082", "T1083", "T1003", "T1003.001"],
+    "Carbanak / FIN7 / Navigator Group":
+        ["T1059", "T1059.001", "T1055", "T1082", "T1003", "T1543.003",
+         "T1547.001"],
+    "Cl0p Ransomware":
+        ["T1486", "T1082", "T1083", "T1003", "T1036"],
+    "Conti Ransomware":
+        ["T1486", "T1082", "T1083", "T1003", "T1003.001", "T1059",
+         "T1059.001", "T1543.003"],
+    "DarkHotel (Tapaoux)":
+        ["T1059", "T1055", "T1082", "T1574.001"],
+    "Equation Group (NSA / GCHQ-linked)":
+        ["T1014", "T1082", "T1003", "T1055", "T1542.003", "T1027",
+         "T1106"],
+    "Gamaredon (Primitive Bear)":
+        ["T1059", "T1082", "T1083", "T1547.001"],
+    "Hive Ransomware":
+        ["T1486", "T1082", "T1083", "T1003", "T1059"],
+    "Kimsuky (Thallium / Black Banshee)":
+        ["T1059", "T1082", "T1083", "T1056.001", "T1003"],
+    "LockBit Ransomware":
+        ["T1486", "T1082", "T1083", "T1003", "T1059", "T1543.003",
+         "T1070"],
+    "MuddyWater (Static Kitten)":
+        ["T1059", "T1059.001", "T1082", "T1083", "T1027", "T1055"],
+    "NotPetya / Sandworm (GRU Unit 74455)":
+        ["T1486", "T1003", "T1003.001", "T1082", "T1059", "T1106"],
+    "REvil / Sodinokibi":
+        ["T1486", "T1082", "T1083", "T1003", "T1059", "T1547.001"],
+    "Ryuk Ransomware":
+        ["T1486", "T1082", "T1083", "T1003", "T1003.001", "T1059",
+         "T1543.003", "T1070"],
+    "ShadowPad (APT41-linked)":
+        ["T1055", "T1082", "T1014", "T1574", "T1106"],
+    "TA505 (Evil Corp-linked)":
+        ["T1059", "T1059.001", "T1055", "T1082", "T1543.003", "T1027"],
+    "Turla (Venomous Bear / Waterbug)":
+        ["T1055", "T1059", "T1014", "T1082", "T1056.001", "T1574",
+         "T1106"],
+    "WannaCry (Lazarus Group)":
+        ["T1486", "T1082", "T1059"],
+    "Winnti Group (APT41 overlap)":
+        ["T1055", "T1014", "T1082", "T1574", "T1543.003"],
+    "Wizard Spider (Ryuk / TrickBot)":
+        ["T1059", "T1059.001", "T1082", "T1003", "T1003.001", "T1486",
+         "T1543.003", "T1070"],
+}
+
+
+# ATT&CK tactic groupings (tactic label → technique ID prefixes that belong to it)
+MITRE_TACTICS: Dict[str, List[str]] = {
+    "Execution":      ["T1059", "T1106", "T1129"],
+    "Persistence":    ["T1053.005", "T1542.003", "T1543.003", "T1546.011",
+                       "T1547.001"],
+    "Priv Escalation":["T1055", "T1068", "T1134", "T1620"],
+    "Def Evasion":    ["T1014", "T1027", "T1036", "T1070", "T1112", "T1140",
+                       "T1562", "T1564", "T1622"],
+    "Cred Access":    ["T1003", "T1056.001", "T1552.001", "T1556.001"],
+    "Discovery":      ["T1007", "T1012", "T1016", "T1049", "T1057", "T1069",
+                       "T1082", "T1083", "T1518"],
+    "Lat Movement":   ["T1021", "T1563"],
+    "Collection":     ["T1005"],
+    "C2":             ["T1071", "T1105"],
+    "Impact":         ["T1486"],
+}
+
+# Plugin name key → technique → confidence level ('H' high / 'M' medium / 'L' low).
+# High  = plugin was specifically designed for this detection
+# Medium = strong secondary signal (default when not listed)
+# Low   = circumstantial / indirect evidence only
+PLUGIN_MITRE_CONFIDENCE: Dict[str, Dict[str, str]] = {
+    "malfind":              {"T1055": "H", "T1055.001": "H", "T1055.002": "H",
+                             "T1055.012": "H", "T1620": "H", "T1027.007": "M"},
+    "hollowprocesses":      {"T1055.012": "H"},
+    "processghosting":      {"T1055.015": "H"},
+    "skeleton_key_check":   {"T1556.001": "H"},
+    "hashdump":             {"T1003.002": "H", "T1003": "H"},
+    "cachedump":            {"T1003.005": "H", "T1003": "H"},
+    "lsadump":              {"T1003.004": "H"},
+    "check_creds":          {"T1003": "H"},
+    "keyboard_notifiers":   {"T1056.001": "H"},
+    "tty_check":            {"T1056.001": "H", "T1014": "H"},
+    "ssdt":                 {"T1014": "H", "T1562.001": "H"},
+    "callbacks":            {"T1014": "H"},
+    "direct_system_calls":  {"T1106": "H", "T1562.001": "H"},
+    "indirect_system_calls":{"T1106": "H", "T1562.001": "H"},
+    "unhooked_system_calls":{"T1106": "H", "T1562.001": "H"},
+    "etwpatch":             {"T1562.006": "H", "T1562.001": "H"},
+    "debugregisters":       {"T1622": "H"},
+    "mbrscan":              {"T1542.003": "H"},
+    "pebmasquerade":        {"T1036.005": "H"},
+    "process_spoofing":     {"T1036": "H", "T1036.005": "H"},
+    "getcellroutine":       {"T1014": "H"},
+    "trustedbsd":           {"T1553": "H"},
+    "ebpf":                 {"T1014": "H"},
+    "check_afinfo":         {"T1014": "H"},
+    "check_idt":            {"T1014": "H"},
+    "check_modules":        {"T1014": "H"},
+    "check_syscall":        {"T1014": "H"},
+    "check_sysctl":         {"T1014": "H"},
+    "check_trap_table":     {"T1014": "H"},
+    "hidden_modules":       {"T1014": "H"},
+    "modxview":             {"T1014": "H"},
+    "netfilter":            {"T1014": "H"},
+    "ftrace":               {"T1014": "H", "T1056.001": "M"},
+    "psxview":              {"T1014": "H", "T1057": "H"},
+    "drivermodule":         {"T1014": "H"},
+    "ldrmodules":           {"T1055.001": "H", "T1574.001": "H"},
+    "shimcachemem":         {"T1546.011": "H"},
+    "scheduled_tasks":      {"T1053.005": "H"},
+    "svcdiff":              {"T1543.003": "H"},
+    "mftscan":              {"T1070.004": "H", "T1564.004": "H", "T1564.001": "M"},
+    "unloadedmodules":      {"T1070": "H"},
+    "mutantscan":           {"T1071": "M", "T1105": "L"},
+    "netscan":              {"T1049": "H", "T1071": "M", "T1021": "M"},
+    "netstat":              {"T1049": "H", "T1071": "M", "T1021": "M"},
+    "sessions":             {"T1563": "M", "T1078": "M"},
+    "dlllist":              {"T1055.001": "H", "T1574": "M", "T1129": "M"},
+    "vadinfo":              {"T1055": "M", "T1620": "M", "T1140": "L"},
+    "cmdline":              {"T1059": "H", "T1059.001": "H", "T1059.003": "H",
+                             "T1027": "L", "T1218": "M"},
+    "cmdscan":              {"T1059.003": "H"},
+    "consoles":             {"T1059.003": "H", "T1105": "L", "T1057": "L"},
+    "certificates":         {"T1553.004": "H"},
+    "truecrypt":            {"T1552.001": "H", "T1486": "M"},
+    "symlinkscan":          {"T1564.001": "M"},
+    "strings":              {"T1027": "M", "T1059": "L", "T1071": "L"},
+    "yarascan":             {"T1518": "M"},
+}
+
+
+def _get_confidence(plugin_key: str, technique_id: str) -> str:
+    """Return H/M/L confidence for a plugin-key + technique pair."""
+    return PLUGIN_MITRE_CONFIDENCE.get(plugin_key, {}).get(technique_id, "M")
+
+
+def _get_plugin_techniques(plugin_name: str) -> List[str]:
+    """Return all MITRE technique IDs that a plugin maps to.
+
+    Matching is done by checking whether any dot-separated segment of the
+    *full* plugin name (e.g. ``windows.registry.hashdump``) equals a key in
+    :data:`PLUGIN_MITRE_MAP`.  Multi-segment keys (none currently) would
+    require consecutive segments to match.
+    """
+    parts = plugin_name.lower().split(".")
+    techniques: List[str] = []
+    seen: set = set()
+    for key, techs in PLUGIN_MITRE_MAP.items():
+        key_parts = key.split(".")
+        klen = len(key_parts)
+        # Slide a window of size klen over parts
+        for i in range(len(parts) - klen + 1):
+            if parts[i:i + klen] == key_parts:
+                for t in techs:
+                    if t not in seen:
+                        techniques.append(t)
+                        seen.add(t)
+                break
+    return techniques
+
+
+# ===========================================================================
 # Theme engine
 # ===========================================================================
 
@@ -654,6 +1089,7 @@ class PluginBrowserWidget(QWidget):
         super().__init__(parent)
         self.setObjectName("sidePanel")
         self._all: List[Tuple[str, Any, QTreeWidgetItem]] = []
+        self._mitre_techs: Optional[frozenset] = None   # None = no filter
         self._build_ui()
 
     def _build_ui(self):
@@ -683,9 +1119,27 @@ class PluginBrowserWidget(QWidget):
         sl.setContentsMargins(8, 6, 8, 6)
         self.search = QLineEdit()
         self.search.setPlaceholderText("Filter plugins…")
-        self.search.textChanged.connect(self._filter)
+        self.search.textChanged.connect(self._apply_filters)
         sl.addWidget(self.search)
         lay.addWidget(sw)
+
+        # ── MITRE / threat-actor filter ────────────────────────────────────
+        mw = QWidget()
+        mw.setObjectName("subHeader")
+        ml = QVBoxLayout(mw)
+        ml.setContentsMargins(8, 4, 8, 6)
+        ml.setSpacing(3)
+        mitre_hdr = QLabel("MITRE / THREAT ACTOR FILTER")
+        mitre_hdr.setObjectName("sectionLabel")
+        ml.addWidget(mitre_hdr)
+        self.mitre_combo = QComboBox()
+        self.mitre_combo.setToolTip(
+            "Filter the plugin list by MITRE ATT&CK Technique ID or known threat actor.\n"
+            "Only plugins that map to the selected technique(s) will be shown.")
+        self._populate_mitre_combo()
+        self.mitre_combo.currentIndexChanged.connect(self._on_mitre_changed)
+        ml.addWidget(self.mitre_combo)
+        lay.addWidget(mw)
 
         # ── tree ────────────────────────────────────────────────────────────
         self.tree = QTreeWidget()
@@ -698,6 +1152,48 @@ class PluginBrowserWidget(QWidget):
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._ctx)
         lay.addWidget(self.tree)
+
+    def _populate_mitre_combo(self):
+        """Fill the MITRE / threat-actor combo box."""
+        cb = self.mitre_combo
+        cb.blockSignals(True)
+        cb.clear()
+
+        cb.addItem("— All Plugins —")
+        cb.setItemData(0, None)   # sentinel: no filter
+
+        # ── Technique IDs ──────────────────────────────────────────────────
+        hdr_idx = cb.count()
+        cb.addItem("── MITRE ATT&CK Techniques ──")
+        cb.model().item(hdr_idx).setEnabled(False)
+
+        for tid in sorted(MITRE_TECHNIQUES.keys()):
+            label = f"{tid}  –  {MITRE_TECHNIQUES[tid]}"
+            cb.addItem(label)
+            cb.setItemData(cb.count() - 1, frozenset({tid}))
+
+        # ── Threat actors ──────────────────────────────────────────────────
+        hdr_idx2 = cb.count()
+        cb.addItem("── Known Threat Actors / Groups ──")
+        cb.model().item(hdr_idx2).setEnabled(False)
+
+        for actor in sorted(THREAT_ACTORS.keys()):
+            cb.addItem(actor)
+            cb.setItemData(cb.count() - 1, frozenset(THREAT_ACTORS[actor]))
+
+        cb.blockSignals(False)
+
+    def _on_mitre_changed(self, _idx: int):
+        data = self.mitre_combo.currentData()
+        # Disabled header items return None; treat same as "All Plugins"
+        if data is None and self.mitre_combo.currentIndex() != 0:
+            # User clicked a disabled separator — jump back to "all"
+            self.mitre_combo.blockSignals(True)
+            self.mitre_combo.setCurrentIndex(0)
+            self.mitre_combo.blockSignals(False)
+            data = None
+        self._mitre_techs = data
+        self._apply_filters()
 
     def populate(self, cats: dict):
         self.tree.clear()
@@ -718,21 +1214,65 @@ class PluginBrowserWidget(QWidget):
                 item = QTreeWidgetItem([name.split(".")[-1]])
                 item.setData(0, Qt.UserRole, (name, cls))
                 doc = (cls.__doc__ or "").strip()
-                if doc: item.setToolTip(0, doc.split("\n")[0][:140])
+                # Build tooltip: first line of docstring + MITRE techniques
+                techs = _get_plugin_techniques(name)
+                tip_parts = []
+                if doc:
+                    tip_parts.append(doc.split("\n")[0][:140])
+                if techs:
+                    tip_parts.append(
+                        "MITRE: " + ", ".join(
+                            f"{t} ({MITRE_TECHNIQUES.get(t, '')})" for t in techs
+                        )
+                    )
+                if tip_parts:
+                    item.setToolTip(0, "\n".join(tip_parts))
                 cat_item.addChild(item)
                 self._all.append((name, cls, item))
                 total += 1
         self.count_lbl.setText(str(total))
+        self._apply_filters()
 
-    def _filter(self, text: str):
-        text = text.lower().strip()
+    def _apply_filters(self):
+        """Apply both the text search and the MITRE/actor filter together."""
+        text  = self.search.text().lower().strip()
+        techs = self._mitre_techs   # frozenset of IDs, or None for "all"
+
         for name, _cls, item in self._all:
-            item.setHidden(bool(text) and text not in name.lower())
+            text_ok = (not text) or (text in name.lower())
+
+            if techs is None:
+                mitre_ok = True
+            else:
+                plugin_techs = _get_plugin_techniques(name)
+                # A plugin matches if any of its techniques starts-with (or
+                # equals) any filter technique, supporting parent-level matching
+                # (e.g. selecting T1003 also reveals T1003.001 plugins).
+                mitre_ok = any(
+                    pt.startswith(ft) or ft.startswith(pt)
+                    for pt in plugin_techs
+                    for ft in techs
+                )
+
+            item.setHidden(not (text_ok and mitre_ok))
+
+        active = bool(text) or techs is not None
+        vis_total = 0
         for i in range(self.tree.topLevelItemCount()):
             cat = self.tree.topLevelItem(i)
             vis = any(not cat.child(j).isHidden() for j in range(cat.childCount()))
             cat.setHidden(not vis)
-            cat.setExpanded(bool(text) and vis)
+            cat.setExpanded(active and vis)
+            if vis:
+                vis_total += sum(
+                    1 for j in range(cat.childCount())
+                    if not cat.child(j).isHidden()
+                )
+
+        total = len(self._all)
+        self.count_lbl.setText(
+            f"{vis_total}/{total}" if active else str(total)
+        )
 
     def _on_select(self):
         items = self.tree.selectedItems()
@@ -1184,12 +1724,47 @@ class ResultsTab(QWidget):
     def _stem(self) -> str:
         return f"{self.plugin_name.replace('.','_')}_{_ts()}"
 
+    # ── MITRE metadata helpers ─────────────────────────────────────────────
+
+    def _mitre_meta(self) -> dict:
+        """Return MITRE technique and threat-actor metadata for this plugin."""
+        techs = _get_plugin_techniques(self.plugin_name)
+        tech_labels = [
+            f"{t} – {MITRE_TECHNIQUES.get(t, t)}" for t in techs
+        ]
+        # Find actors whose technique sets overlap this plugin's techniques
+        matched_actors = []
+        for actor, actor_techs in sorted(THREAT_ACTORS.items()):
+            actor_set = set(actor_techs)
+            if any(
+                pt.startswith(ft) or ft.startswith(pt)
+                for pt in techs for ft in actor_set
+            ):
+                matched_actors.append(actor)
+        return {
+            "technique_ids":    techs,
+            "technique_labels": tech_labels,
+            "threat_actors":    matched_actors,
+        }
+
+    # ── exports ───────────────────────────────────────────────────────────
+
     def _export_csv(self):
         path, _ = QFileDialog.getSaveFileName(self, "Export CSV", f"{self._stem()}.csv", "CSV (*.csv)")
         if not path: return
         cols, rows = self._visible_data()
+        meta = self._mitre_meta()
         with open(path, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
+            # MITRE header comments
+            w.writerow([f"# Plugin: {self.plugin_name}"])
+            w.writerow([f"# Image: {os.path.basename(self.dump_path)}"])
+            w.writerow([f"# Timestamp: {self._ts}"])
+            if meta["technique_labels"]:
+                w.writerow([f"# MITRE Techniques: {'; '.join(meta['technique_labels'])}"])
+            if meta["threat_actors"]:
+                w.writerow([f"# Threat Actors: {'; '.join(meta['threat_actors'])}"])
+            w.writerow([])
             w.writerow(cols)
             w.writerows(rows)
         _done(self, path)
@@ -1198,8 +1773,17 @@ class ResultsTab(QWidget):
         path, _ = QFileDialog.getSaveFileName(self, "Export TSV", f"{self._stem()}.tsv", "TSV (*.tsv)")
         if not path: return
         cols, rows = self._visible_data()
+        meta = self._mitre_meta()
         with open(path, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f, delimiter="\t")
+            w.writerow([f"# Plugin: {self.plugin_name}"])
+            w.writerow([f"# Image: {os.path.basename(self.dump_path)}"])
+            w.writerow([f"# Timestamp: {self._ts}"])
+            if meta["technique_labels"]:
+                w.writerow([f"# MITRE Techniques: {'; '.join(meta['technique_labels'])}"])
+            if meta["threat_actors"]:
+                w.writerow([f"# Threat Actors: {'; '.join(meta['threat_actors'])}"])
+            w.writerow([])
             w.writerow(cols)
             w.writerows(rows)
         _done(self, path)
@@ -1208,8 +1792,20 @@ class ResultsTab(QWidget):
         path, _ = QFileDialog.getSaveFileName(self, "Export JSON", f"{self._stem()}.json", "JSON (*.json)")
         if not path: return
         cols, rows = self._visible_data()
-        data = {"plugin": self.plugin_name, "image": self.dump_path,
-                "timestamp": self._ts, "rows": [dict(zip(cols, r)) for r in rows]}
+        meta = self._mitre_meta()
+        data = {
+            "plugin":    self.plugin_name,
+            "image":     self.dump_path,
+            "timestamp": self._ts,
+            "mitre": {
+                "techniques": [
+                    {"id": t, "name": MITRE_TECHNIQUES.get(t, t)}
+                    for t in meta["technique_ids"]
+                ],
+                "threat_actors": meta["threat_actors"],
+            },
+            "rows": [dict(zip(cols, r)) for r in rows],
+        }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
         _done(self, path)
@@ -1218,11 +1814,27 @@ class ResultsTab(QWidget):
         path, _ = QFileDialog.getSaveFileName(self, "Export Text", f"{self._stem()}.txt", "Text (*.txt)")
         if not path: return
         cols, rows = self._visible_data()
+        meta = self._mitre_meta()
         widths = [max(len(c), max((len(r[i]) for r in rows), default=0)) for i, c in enumerate(cols)]
-        sep  = "  ".join("-" * w for w in widths)
-        hdr  = "  ".join(c.ljust(widths[i]) for i, c in enumerate(cols))
-        lines = [f"Plugin    : {self.plugin_name}", f"Image     : {self.dump_path}",
-                 f"Timestamp : {self._ts}", f"Rows      : {len(rows):,}", "", hdr, sep]
+        sep = "  ".join("-" * w for w in widths)
+        hdr = "  ".join(c.ljust(widths[i]) for i, c in enumerate(cols))
+        lines = [
+            f"Plugin    : {self.plugin_name}",
+            f"Image     : {self.dump_path}",
+            f"Timestamp : {self._ts}",
+            f"Rows      : {len(rows):,}",
+        ]
+        if meta["technique_labels"]:
+            # Wrap long technique lists at 100 chars
+            tline = "; ".join(meta["technique_labels"])
+            lines.append(f"MITRE     : {tline}")
+        if meta["threat_actors"]:
+            # Split actors across lines if there are many
+            actors = meta["threat_actors"]
+            lines.append(f"Actors    : {'; '.join(actors[:4])}")
+            for chunk in [actors[i:i+4] for i in range(4, len(actors), 4)]:
+                lines.append(f"            {'; '.join(chunk)}")
+        lines += ["", hdr, sep]
         for row in rows:
             lines.append("  ".join((row[i] if i < len(row) else "").ljust(widths[i]) for i in range(len(cols))))
         with open(path, "w", encoding="utf-8") as f:
@@ -1233,14 +1845,43 @@ class ResultsTab(QWidget):
         path, _ = QFileDialog.getSaveFileName(self, "Export HTML", f"{self._stem()}.html", "HTML (*.html)")
         if not path: return
         cols, rows = self._visible_data()
-        th = "".join(f"<th>{_esc(c)}</th>" for c in cols)
+        meta  = self._mitre_meta()
+        th    = "".join(f"<th>{_esc(c)}</th>" for c in cols)
         tbody = "".join("<tr>" + "".join(f"<td>{_esc(v)}</td>" for v in r) + "</tr>\n" for r in rows)
+
+        # MITRE badge block
+        tech_badges = "".join(
+            f'<span class="badge-tech" title="{_esc(MITRE_TECHNIQUES.get(t, t))}">{_esc(t)}</span>'
+            for t in meta["technique_ids"]
+        )
+        actor_badges = "".join(
+            f'<span class="badge-actor">{_esc(a)}</span>'
+            for a in meta["threat_actors"]
+        )
+        mitre_block = ""
+        if tech_badges or actor_badges:
+            mitre_block = (
+                '<div class="mitre-section">'
+                + ('<div class="mitre-row"><span class="mitre-lbl">MITRE ATT&amp;CK</span>'
+                   + tech_badges + '</div>' if tech_badges else "")
+                + ('<div class="mitre-row"><span class="mitre-lbl">Threat Actors</span>'
+                   + actor_badges + '</div>' if actor_badges else "")
+                + '</div>'
+            )
+
         html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>Vol3 – {_esc(self.plugin_name.split('.')[-1])}</title>
 <style>
 body{{background:#2b2d3e;color:#ced4f0;font-family:"Segoe UI",sans-serif;font-size:13px;padding:24px 32px}}
-h1{{color:#e05472;font-size:18px;margin:0 0 6px}}
-.meta{{color:#6870a8;font-size:11px;margin-bottom:20px}}
+h1{{color:#e05472;font-size:18px;margin:0 0 4px}}
+.meta{{color:#6870a8;font-size:11px;margin-bottom:12px}}
+.mitre-section{{background:#232538;border:1px solid #3c4060;border-radius:4px;padding:10px 14px;margin-bottom:18px}}
+.mitre-row{{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:4px}}
+.mitre-row:last-child{{margin-bottom:0}}
+.mitre-lbl{{color:#6870a8;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;min-width:110px}}
+.badge-tech{{background:#3a4a8a;color:#ced4f0;border-radius:3px;padding:2px 8px;font-size:11px;
+             font-family:Consolas,monospace;cursor:default}}
+.badge-actor{{background:#4a2838;color:#e05472;border-radius:3px;padding:2px 8px;font-size:11px;cursor:default}}
 .wrap{{overflow-x:auto}}
 table{{border-collapse:collapse;width:100%;font-family:Consolas,monospace;font-size:12px}}
 thead{{background:#232538;border-bottom:1px solid #3c4060}}
@@ -1254,6 +1895,7 @@ footer{{margin-top:16px;color:#3c4060;font-size:10px;text-align:right}}
 <body>
 <h1>{_esc(self.plugin_name.split('.')[-1])}</h1>
 <div class="meta">{_esc(self.plugin_name)} &nbsp;·&nbsp; {_esc(os.path.basename(self.dump_path))} &nbsp;·&nbsp; {_esc(self._ts)} &nbsp;·&nbsp; {len(rows):,} rows</div>
+{mitre_block}
 <div class="wrap"><table><thead><tr>{th}</tr></thead><tbody>{tbody}</tbody></table></div>
 <footer>Generated by Volatility3 GUI · {_esc(self._ts)}</footer>
 </body></html>"""
@@ -1268,14 +1910,33 @@ footer{{margin-top:16px;color:#3c4060;font-size:10px;text-align:right}}
         path, _ = QFileDialog.getSaveFileName(self, "Export PDF", f"{self._stem()}.pdf", "PDF (*.pdf)")
         if not path: return
         cols, rows = self._visible_data()
-        th = "".join(f"<th>{_esc(c)}</th>" for c in cols)
+        meta = self._mitre_meta()
+        th    = "".join(f"<th>{_esc(c)}</th>" for c in cols)
         tbody = "".join("<tr>" + "".join(f"<td>{_esc(v)}</td>" for v in r) + "</tr>" for r in rows)
-        html = (f"<html><body style='font-family:monospace;font-size:9pt'>"
-                f"<h3>{_esc(self.plugin_name)}</h3>"
-                f"<p style='font-size:8pt;color:#555'>{_esc(self.dump_path)} · {_esc(self._ts)} · {len(rows):,} rows</p>"
-                f"<table border='0' cellspacing='0' cellpadding='4' style='border-collapse:collapse;font-size:8pt'>"
-                f"<thead style='background:#dde;font-weight:bold'><tr>{th}</tr></thead>"
-                f"<tbody>{tbody}</tbody></table></body></html>")
+
+        mitre_rows = ""
+        if meta["technique_labels"]:
+            techs_html = ", ".join(_esc(t) for t in meta["technique_labels"])
+            mitre_rows += f"<tr><td><b>MITRE Techniques</b></td><td>{techs_html}</td></tr>"
+        if meta["threat_actors"]:
+            actors_html = ", ".join(_esc(a) for a in meta["threat_actors"])
+            mitre_rows += f"<tr><td><b>Threat Actors</b></td><td>{actors_html}</td></tr>"
+        mitre_table = (
+            f"<table border='0' cellpadding='3' style='font-size:7pt;margin-bottom:8px'>"
+            f"{mitre_rows}</table>" if mitre_rows else ""
+        )
+
+        html = (
+            f"<html><body style='font-family:sans-serif;font-size:9pt'>"
+            f"<h3 style='margin-bottom:2px'>{_esc(self.plugin_name)}</h3>"
+            f"<p style='font-size:8pt;color:#555;margin:0 0 6px'>"
+            f"{_esc(self.dump_path)} · {_esc(self._ts)} · {len(rows):,} rows</p>"
+            f"{mitre_table}"
+            f"<table border='0' cellspacing='0' cellpadding='4'"
+            f" style='border-collapse:collapse;font-size:8pt'>"
+            f"<thead style='background:#dde;font-weight:bold'><tr>{th}</tr></thead>"
+            f"<tbody>{tbody}</tbody></table></body></html>"
+        )
         printer = QPrinter(QPrinter.HighResolution)
         printer.setOutputFormat(QPrinter.PdfFormat)
         printer.setOutputFileName(path)
@@ -1294,19 +1955,41 @@ footer{{margin-top:16px;color:#3c4060;font-size:10px;text-align:right}}
         path, _ = QFileDialog.getSaveFileName(self, "Export Excel", f"{self._stem()}.xlsx", "Excel (*.xlsx)")
         if not path: return
         cols, rows = self._visible_data()
+        meta = self._mitre_meta()
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = self.plugin_name.split(".")[-1][:31]
-        for row_data in [["Plugin", self.plugin_name], ["Image", self.dump_path],
-                         ["Date", self._ts], ["Rows", len(rows)], []]:
-            ws.append(row_data)
-        hf = PatternFill("solid", fgColor="232538")
+
+        # ── metadata rows ──────────────────────────────────────────────────
+        mfont  = XLFont(bold=True, color="9AA2CC", size=10)
+        vfont  = XLFont(color="CED4F0", size=10)
+        mbg    = PatternFill("solid", fgColor="1E2030")
+
+        def _meta_row(label, value):
+            ws.append([label, value])
+            r = ws.max_row
+            for ci in (1, 2):
+                ws.cell(r, ci).fill  = mbg
+                ws.cell(r, ci).font  = mfont if ci == 1 else vfont
+
+        _meta_row("Plugin",    self.plugin_name)
+        _meta_row("Image",     self.dump_path)
+        _meta_row("Timestamp", self._ts)
+        _meta_row("Rows",      len(rows))
+        if meta["technique_labels"]:
+            _meta_row("MITRE Techniques", "; ".join(meta["technique_labels"]))
+        if meta["threat_actors"]:
+            _meta_row("Threat Actors", "; ".join(meta["threat_actors"]))
+        ws.append([])   # blank separator
+
+        hrow = ws.max_row + 1
+        hf    = PatternFill("solid", fgColor="232538")
         hfont = XLFont(bold=True, color="9AA2CC", size=10)
-        hrow = 6
         for ci, col in enumerate(cols, 1):
             cell = ws.cell(row=hrow, column=ci, value=col)
             cell.fill = hf; cell.font = hfont
             cell.alignment = Alignment(horizontal="left")
+
         f_odd  = PatternFill("solid", fgColor="2B2D3E")
         f_even = PatternFill("solid", fgColor="2F3245")
         dfont  = XLFont(name="Consolas", size=10, color="CED4F0")
@@ -1315,6 +1998,21 @@ footer{{margin-top:16px;color:#3c4060;font-size:10px;text-align:right}}
             for ci, val in enumerate(row, 1):
                 cell = ws.cell(row=ri, column=ci, value=val)
                 cell.fill = fill; cell.font = dfont
+
+        # ── MITRE summary sheet ────────────────────────────────────────────
+        if meta["technique_ids"] or meta["threat_actors"]:
+            ms = wb.create_sheet("MITRE Coverage")
+            ms.append(["Plugin", self.plugin_name])
+            ms.append(["Timestamp", self._ts])
+            ms.append([])
+            ms.append(["Technique ID", "Technique Name"])
+            for tid in meta["technique_ids"]:
+                ms.append([tid, MITRE_TECHNIQUES.get(tid, "")])
+            ms.append([])
+            ms.append(["Threat Actors"])
+            for actor in meta["threat_actors"]:
+                ms.append([actor])
+
         for col_cells in ws.columns:
             ml = max((len(str(cell.value or "")) for cell in col_cells), default=8)
             ws.column_dimensions[col_cells[0].column_letter].width = min(ml + 2, 50)
@@ -1597,6 +2295,283 @@ class VolshellWidget(QWidget):
 
 
 # ===========================================================================
+# MITRE Coverage Matrix dialog
+# ===========================================================================
+
+class MitreCoverageDialog(QWidget):
+    """Standalone window: rows = plugins, columns = ATT&CK tactics.
+
+    Each cell shows the highest confidence level (H / M / L) among the
+    techniques the plugin maps to within that tactic column.
+    H = plugin specifically designed for that detection
+    M = strong secondary signal
+    L = circumstantial / indirect
+    Blank = no mapping.
+    """
+
+    _CONF_ORDER = {"H": 3, "M": 2, "L": 1, "": 0}
+    _CONF_LABEL = {"H": "●  H", "M": "◉  M", "L": "○  L", "": ""}
+
+    def __init__(self, plugin_cats: dict, parent=None):
+        super().__init__(parent, Qt.Window)
+        self.setWindowTitle("MITRE ATT&CK Coverage Matrix  —  Volatility3 Plugins")
+        self.resize(1280, 820)
+        self._plugin_cats = plugin_cats
+        self._rows: List[Tuple[str, str, dict]] = []   # (full_name, short, tactic→conf)
+        self._build_data()
+        self._build_ui()
+
+    # ── data ──────────────────────────────────────────────────────────────────
+
+    def _build_data(self):
+        """Pre-compute tactic → confidence for every plugin that has coverage."""
+        tactics = list(MITRE_TACTICS.keys())
+        for key in ("windows", "linux", "mac", "other"):
+            for full_name in sorted(self._plugin_cats.get(key, {}).keys()):
+                techs = _get_plugin_techniques(full_name)
+                if not techs:
+                    continue
+                # For each tactic, find the best confidence among matching techniques
+                tactic_conf: dict = {}
+                plugin_parts = full_name.lower().split(".")
+                # Identify which plugin_map key(s) fired so we can look up confidence
+                fired_keys = []
+                for pk in PLUGIN_MITRE_MAP:
+                    pk_parts = pk.split(".")
+                    klen = len(pk_parts)
+                    for i in range(len(plugin_parts) - klen + 1):
+                        if plugin_parts[i:i + klen] == pk_parts:
+                            fired_keys.append(pk)
+                            break
+
+                for tactic in tactics:
+                    tac_prefixes = MITRE_TACTICS[tactic]
+                    best = ""
+                    for tech in techs:
+                        # Check if this technique belongs to this tactic
+                        if not any(tech.startswith(p) or p.startswith(tech)
+                                   for p in tac_prefixes):
+                            continue
+                        # Look up confidence from fired keys
+                        for pk in fired_keys:
+                            conf = _get_confidence(pk, tech)
+                            if self._CONF_ORDER.get(conf, 0) > self._CONF_ORDER.get(best, 0):
+                                best = conf
+                    if best:
+                        tactic_conf[tactic] = best
+
+                if tactic_conf:
+                    self._rows.append((full_name, full_name.split(".")[-1], tactic_conf))
+
+    # ── UI ────────────────────────────────────────────────────────────────────
+
+    def _build_ui(self):
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        # ── toolbar ────────────────────────────────────────────────────────
+        tb = QWidget()
+        tb.setObjectName("subHeader")
+        tb.setFixedHeight(42)
+        tl = QHBoxLayout(tb)
+        tl.setContentsMargins(12, 0, 12, 0)
+        tl.setSpacing(8)
+
+        lbl = QLabel("MITRE ATT&CK COVERAGE MATRIX")
+        lbl.setObjectName("sectionLabel")
+        tl.addWidget(lbl)
+
+        legend = QLabel(
+            "   ●  H = primary detection    ◉  M = secondary signal    ○  L = circumstantial")
+        legend.setObjectName("tabInfo")
+        tl.addWidget(legend)
+        tl.addStretch()
+
+        search = QLineEdit()
+        search.setPlaceholderText("Filter plugins…")
+        search.setFixedWidth(200)
+        search.textChanged.connect(self._filter)
+        self._search = search
+        tl.addWidget(search)
+
+        tactic_cb = QComboBox()
+        tactic_cb.addItem("All Tactics")
+        for t in MITRE_TACTICS:
+            tactic_cb.addItem(t)
+        tactic_cb.currentTextChanged.connect(self._on_tactic_filter)
+        self._tactic_cb = tactic_cb
+        tl.addWidget(tactic_cb)
+
+        conf_cb = QComboBox()
+        conf_cb.addItem("All Confidence")
+        conf_cb.addItem("High only")
+        conf_cb.addItem("High + Medium")
+        conf_cb.currentTextChanged.connect(self._on_conf_filter)
+        self._conf_cb = conf_cb
+        tl.addWidget(conf_cb)
+
+        exp_btn = _ghost_btn("Export CSV ▾")
+        exp_btn.setFixedWidth(100)
+        exp_btn.clicked.connect(self._export_csv)
+        tl.addWidget(exp_btn)
+
+        lay.addWidget(tb)
+
+        # ── table ──────────────────────────────────────────────────────────
+        tactics = list(MITRE_TACTICS.keys())
+        self._tactics = tactics
+
+        self.table = QTableWidget()
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setSortingEnabled(True)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setShowGrid(True)
+
+        headers = ["Plugin", "OS"] + tactics
+        self.table.setColumnCount(len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
+        self.table.horizontalHeader().setStretchLastSection(False)
+
+        self._populate_table(self._rows)
+        lay.addWidget(self.table)
+
+        # ── footer ─────────────────────────────────────────────────────────
+        ft = QWidget()
+        ft.setObjectName("tabFooter")
+        ft.setFixedHeight(24)
+        fl = QHBoxLayout(ft)
+        fl.setContentsMargins(10, 0, 10, 0)
+        self._count_lbl = QLabel()
+        self._count_lbl.setObjectName("tabCount")
+        self._count_lbl.setText(f"{len(self._rows)} plugins mapped")
+        fl.addWidget(self._count_lbl)
+        fl.addStretch()
+        lay.addWidget(ft)
+
+    def _populate_table(self, rows):
+        c = _c()
+        conf_colors = {
+            "H": c["error"],     # red-pink — high severity / confidence
+            "M": c["warning"],   # amber
+            "L": c["text_sec"],  # muted
+        }
+        tactics = self._tactics
+
+        self.table.setSortingEnabled(False)
+        self.table.setRowCount(len(rows))
+
+        os_map = {"windows": "Win", "linux": "Linux", "mac": "macOS",
+                  "other": "Other"}
+
+        for r, (full_name, short, tac_conf) in enumerate(rows):
+            self.table.setRowHeight(r, 22)
+            os_key = full_name.split(".")[0].lower()
+
+            name_item = QTableWidgetItem(full_name)
+            name_item.setToolTip(full_name)
+            self.table.setItem(r, 0, name_item)
+
+            os_item = QTableWidgetItem(os_map.get(os_key, os_key))
+            os_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(r, 1, os_item)
+
+            for col, tactic in enumerate(tactics, start=2):
+                conf = tac_conf.get(tactic, "")
+                label = self._CONF_LABEL.get(conf, "")
+                cell = QTableWidgetItem(label)
+                cell.setTextAlignment(Qt.AlignCenter)
+                if conf in conf_colors:
+                    cell.setForeground(QColor(conf_colors[conf]))
+                # Store raw confidence for sorting (H=3, M=2, L=1, blank=0)
+                cell.setData(Qt.UserRole, self._CONF_ORDER.get(conf, 0))
+                self.table.setItem(r, col, cell)
+
+        self.table.setSortingEnabled(True)
+        self.table.resizeColumnToContents(0)
+        self.table.setColumnWidth(0, min(self.table.columnWidth(0), 320))
+        self.table.setColumnWidth(1, 56)
+        for col in range(2, self.table.columnCount()):
+            self.table.setColumnWidth(col, 90)
+
+    def _filter(self, text: str):
+        text = text.lower().strip()
+        tactic = self._tactic_cb.currentText()
+        conf_min = {"All Confidence": 0, "High only": 3, "High + Medium": 2}.get(
+            self._conf_cb.currentText(), 0)
+        tactic_cols = (
+            [self._tactics.index(tactic) + 2]
+            if tactic != "All Tactics" and tactic in self._tactics else
+            list(range(2, 2 + len(self._tactics)))
+        )
+        visible = 0
+        for r in range(self.table.rowCount()):
+            name_item = self.table.item(r, 0)
+            name = (name_item.text() if name_item else "").lower()
+            text_ok = (not text) or text in name
+            conf_ok = (conf_min == 0) or any(
+                (self.table.item(r, c) or QTableWidgetItem("")).data(Qt.UserRole) >= conf_min
+                for c in tactic_cols
+            )
+            hidden = not (text_ok and conf_ok)
+            self.table.setRowHidden(r, hidden)
+            if not hidden:
+                visible += 1
+        total = self.table.rowCount()
+        self._count_lbl.setText(
+            f"{visible}/{total} plugins" if (text or conf_min or tactic != "All Tactics")
+            else f"{total} plugins mapped"
+        )
+
+    def _on_tactic_filter(self, _txt: str):
+        self._filter(self._search.text())
+
+    def _on_conf_filter(self, _txt: str):
+        self._filter(self._search.text())
+
+    def _export_csv(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Coverage Matrix", "mitre_coverage_matrix.csv", "CSV (*.csv)")
+        if not path:
+            return
+        import csv as _csv
+        tactics = self._tactics
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            w = _csv.writer(f)
+            w.writerow(["Plugin", "OS"] + tactics)
+            for r in range(self.table.rowCount()):
+                if self.table.isRowHidden(r):
+                    continue
+                row_data = []
+                for col in range(self.table.columnCount()):
+                    item = self.table.item(r, col)
+                    # Export raw H/M/L instead of the symbol-label
+                    if col >= 2:
+                        rank = (item.data(Qt.UserRole) if item else 0) or 0
+                        row_data.append({3: "H", 2: "M", 1: "L"}.get(rank, ""))
+                    else:
+                        row_data.append(item.text() if item else "")
+                w.writerow(row_data)
+        _done(self, path)
+
+    def restyle(self):
+        """Re-apply theme colours when palette changes."""
+        c = _c()
+        conf_colors = {"H": c["error"], "M": c["warning"], "L": c["text_sec"]}
+        for r in range(self.table.rowCount()):
+            for col in range(2, self.table.columnCount()):
+                item = self.table.item(r, col)
+                if not item:
+                    continue
+                rank = item.data(Qt.UserRole) or 0
+                conf = {3: "H", 2: "M", 1: "L"}.get(rank, "")
+                if conf:
+                    item.setForeground(QColor(conf_colors[conf]))
+
+
+# ===========================================================================
 # Main window
 # ===========================================================================
 
@@ -1612,6 +2587,8 @@ class MainWindow(QMainWindow):
         # custom symbol table paths: {"linux": [], "mac": []}
         self._symbol_paths: Dict[str, List[str]] = {"linux": [], "mac": []}
         self._volshell_tab_idx: int = -1
+        self._coverage_win: Optional[MitreCoverageDialog] = None
+        self._plugin_cats: dict = {}
 
         # Load saved theme before building UI
         global _ACTIVE
@@ -1772,6 +2749,10 @@ class MainWindow(QMainWindow):
         # Restyle browser category items
         self.browser.restyle()
 
+        # Restyle coverage matrix if open
+        if self._coverage_win and self._coverage_win.isVisible():
+            self._coverage_win.restyle()
+
     def _build_menu(self):
         mb = self.menuBar()
 
@@ -1824,6 +2805,8 @@ class MainWindow(QMainWindow):
         # ── Tools ─────────────────────────────────────────────────────────
         tm = mb.addMenu("&Tools")
         self._act(tm, "Open Volshell…", self._open_volshell, "Ctrl+Shift+S")
+        self._act(tm, "MITRE Coverage Matrix…",
+                  self._open_coverage_matrix, "Ctrl+Shift+M")
 
         # ── Help ──────────────────────────────────────────────────────────
         hm = mb.addMenu("&Help")
@@ -1870,9 +2853,14 @@ class MainWindow(QMainWindow):
 
     def _on_plugins_ready(self, cats: dict):
         total = sum(len(v) for v in cats.values())
+        self._plugin_cats = cats
         self.browser.populate(cats)
         self.log_panel.log(f"{total} plugins loaded.", "success")
         self._sb_main.setText(f"{total} plugins")
+        # Refresh coverage window if already open
+        if self._coverage_win and self._coverage_win.isVisible():
+            self._coverage_win.close()
+            self._coverage_win = None
 
     # ── file ─────────────────────────────────────────────────────────────────
 
@@ -2113,10 +3101,29 @@ class MainWindow(QMainWindow):
         # Keep track if user manually closes the tab
         self.results_tabs.tabCloseRequested.connect(self._on_tab_close_track)
 
+    # ── MITRE Coverage Matrix ─────────────────────────────────────────────────
+
+    def _open_coverage_matrix(self):
+        if not self._plugin_cats:
+            QMessageBox.information(
+                self, "No Plugins",
+                "Wait for plugin discovery to complete (F5 to refresh).")
+            return
+        if self._coverage_win and self._coverage_win.isVisible():
+            self._coverage_win.raise_()
+            self._coverage_win.activateWindow()
+            return
+        self._coverage_win = MitreCoverageDialog(self._plugin_cats, parent=None)
+        QApplication.instance().setStyleSheet(
+            QApplication.instance().styleSheet())  # ensure theme propagates
+        self._coverage_win.show()
+
     def closeEvent(self, event):
         if self._runner and self._runner.isRunning():
             self._runner.abort()
             self._runner.wait(3000)
+        if self._coverage_win:
+            self._coverage_win.close()
         event.accept()
 
 
