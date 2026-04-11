@@ -69,7 +69,7 @@ v2 adds a complete MITRE ATT&CK mapping layer across the entire tool:
 | Threat actor / group profiles | 26 |
 | High-confidence tactic cells in the matrix | 89 |
 
-### What v2 Does NOT Do
+### What vol_gui Does NOT Do
 
 Plugins that are **forensic infrastructure only** — `windows.info`, `windows.crashinfo`, `windows.statistics`, `windows.virtmap`, `windows.poolscanner`, and similar — carry **no ATT&CK mapping**. This is intentional. These plugins establish ground truth about the system; they do not detect adversary behaviour. Falsely tagging them would pollute threat-actor filters with noise.
 
@@ -265,7 +265,7 @@ The **Filter plugins…** bar narrows the tree in real time by substring match a
 
 ## MITRE ATT&CK / Threat Actor Filter
 
-The dropdown below the text search is the primary new feature of v2. It filters the plugin tree to show **only plugins that map to the selected ATT&CK technique or threat actor group**.
+The dropdown below the text search is the primary new feature. It filters the plugin tree to show **only plugins that map to the selected ATT&CK technique or threat actor group**.
 
 ### How to Use
 
@@ -419,7 +419,7 @@ Each completed plugin run opens in a new closeable, movable tab in the right pan
 
 Every result tab can be exported in seven formats. Exports respect the active column visibility and row filter — only visible columns and rows are exported.
 
-### v2: All Exports Now Include MITRE Metadata
+### All Exports Now Include MITRE Metadata
 
 Every export format embeds:
 - **MITRE technique IDs and names** for the plugin that produced the results
@@ -507,7 +507,7 @@ Actor names wrap onto continuation lines (indented) when there are more than fou
 
 ### HTML
 
-A self-contained, dark-themed HTML report. v2 adds a **MITRE badge section** above the data table:
+A self-contained, dark-themed HTML report. vol_gui adds a **MITRE badge section** above the data table:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -806,7 +806,6 @@ volatility3/
 ├── vol.py                      ← Volatility3 CLI
 ├── volshell.py                 ← Volatility3 interactive shell
 ├── vol_gui.py                  ← GUI frontend (this tool)
-├── README_GUIv2.md             ← This file
 ├── requirements.txt
 ├── setup.py
 ├── volatility3/
