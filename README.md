@@ -1,4 +1,4 @@
-# vol_gui
+# Remora
 
 > A professional, forensically-conscious PyQt5 graphical frontend for the [Volatility3](https://github.com/volatilityfoundation/volatility3) memory forensics framework.
 > Built for analysts who need speed, auditability, and intelligence-informed triage — without touching the command line for every query.
@@ -34,7 +34,7 @@
 
 ## Overview
 
-`vol_gui.py` is a single-file graphical frontend that lives inside your cloned Volatility3 repository and wraps the `vol.py` and `volshell.py` entry points. It exposes every discovered plugin through a categorised, searchable browser, auto-generates argument forms, streams output into tabbed result views, writes a persistent timestamped audit log for every action, and — new in v2 — maps every plugin to the MITRE ATT&CK framework and known threat actor groups so that plugin selection and result exports are intelligence-aware from the start.
+`remora.py` is a single-file graphical frontend that lives inside your cloned Volatility3 repository and wraps the `vol.py` and `volshell.py` entry points. It exposes every discovered plugin through a categorised, searchable browser, auto-generates argument forms, streams output into tabbed result views, writes a persistent timestamped audit log for every action, and — new in v2 — maps every plugin to the MITRE ATT&CK framework and known threat actor groups so that plugin selection and result exports are intelligence-aware from the start.
 
 **Built for:**
 
@@ -69,7 +69,7 @@ v2 adds a complete MITRE ATT&CK mapping layer across the entire tool:
 | Threat actor / group profiles | 26 |
 | High-confidence tactic cells in the matrix | 89 |
 
-### What vol_gui Does NOT Do
+### What Remora Does NOT Do
 
 Plugins that are **forensic infrastructure only** — `windows.info`, `windows.crashinfo`, `windows.statistics`, `windows.virtmap`, `windows.poolscanner`, and similar — carry **no ATT&CK mapping**. This is intentional. These plugins establish ground truth about the system; they do not detect adversary behaviour. Falsely tagging them would pollute threat-actor filters with noise.
 
@@ -81,7 +81,7 @@ Forensic soundness is a core design principle, not an afterthought.
 
 ### Read-Only Evidence Handling
 
-- `vol_gui.py` passes evidence files to Volatility3 exclusively via the `-f` flag
+- `remora.py` passes evidence files to Volatility3 exclusively via the `-f` flag
 - No write operations are performed against the image at any point
 - The tool never copies, modifies, or moves the original file
 - File name, path, and size are displayed on load so the examiner can confirm the correct image before running any plugin
@@ -113,7 +113,7 @@ Every plugin invocation logs the full `vol.py` command including all flags. Any 
 
 ### No Network Access
 
-`vol_gui.py` makes no outbound network connections. All processing is local. PDB downloads (if used via the Windows symbol resolver) are a Volatility3 core function, not initiated by the GUI.
+`remora.py` makes no outbound network connections. All processing is local. PDB downloads (if used via the Windows symbol resolver) are a Volatility3 core function, not initiated by the GUI.
 
 ### Non-Destructive Stop
 
@@ -160,15 +160,15 @@ pip install PyQt5
 pip install openpyxl
 ```
 
-### 4. Place vol_gui.py
+### 4. Place remora.py
 
-`vol_gui.py` must live in the **root of the cloned Volatility3 repository** — the same directory as `vol.py` and `volshell.py`.
+`remora.py` must live in the **root of the cloned Volatility3 repository** — the same directory as `vol.py` and `volshell.py`.
 
 ```
 volatility3/
 ├── vol.py
 ├── volshell.py
-├── vol_gui.py          ← place here
+├── remora.py          ← place here
 ├── volatility3/
 │   ├── framework/
 │   ├── plugins/
@@ -183,7 +183,7 @@ volatility3/
 ### 5. Launch
 
 ```bash
-python3 vol_gui.py
+python3 remora.py
 ```
 
 ---
@@ -325,7 +325,7 @@ Hovering over any plugin in the tree shows a tooltip with:
 
 ### Technical Detail — Mapping Architecture
 
-The mapping is implemented in three data structures at the top of `vol_gui.py`:
+The mapping is implemented in three data structures at the top of `remora.py`:
 
 ```
 MITRE_TECHNIQUES   Dict[str, str]         65 technique IDs → human-readable names
@@ -507,7 +507,7 @@ Actor names wrap onto continuation lines (indented) when there are more than fou
 
 ### HTML
 
-A self-contained, dark-themed HTML report. vol_gui adds a **MITRE badge section** above the data table:
+A self-contained, dark-themed HTML report. remora adds a **MITRE badge section** above the data table:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -805,7 +805,7 @@ After setup your repository root will look like this:
 volatility3/
 ├── vol.py                      ← Volatility3 CLI
 ├── volshell.py                 ← Volatility3 interactive shell
-├── vol_gui.py                  ← GUI frontend (this tool)
+├── remora.py                  ← GUI frontend (this tool)
 ├── requirements.txt
 ├── setup.py
 ├── volatility3/
@@ -832,7 +832,7 @@ pip install PyQt5
 
 ### No plugins appear in the browser
 
-Ensure you are running `vol_gui.py` from inside the cloned `volatility3/` directory. The script inserts its own parent directory into `sys.path` at startup, but Volatility3 must be importable from your Python environment.
+Ensure you are running `remora.py` from inside the cloned `volatility3/` directory. The script inserts its own parent directory into `sys.path` at startup, but Volatility3 must be importable from your Python environment.
 
 ### Linux/macOS plugins fail with `No symbol table`
 
@@ -862,7 +862,7 @@ pip install openpyxl
 
 ### Volshell tab shows `Failed to start volshell.py`
 
-Confirm `volshell.py` exists in the same directory as `vol_gui.py` and that Volatility3's dependencies are fully installed (`pip install -r requirements.txt`).
+Confirm `volshell.py` exists in the same directory as `remora.py` and that Volatility3's dependencies are fully installed (`pip install -r requirements.txt`).
 
 ### Log file not created
 
@@ -878,7 +878,7 @@ The mapping was built with the following principles:
 A plugin like `netscan` is used by the analyst. What it *detects evidence of* is adversary network activity (T1049, T1071, T1021). The mapping reflects the adversary technique, not the analyst action.
 
 **2. Forensic infrastructure has no mapping.**
-Plugins like `windows.info`, `windows.crashinfo`, `windows.statistics`, and `windows.virtmap` establish ground truth about the system. They do not detect adversary behaviour. Mapping them to T1082 (System Information Discovery) would mean "the adversary ran vol_gui.py", which is absurd. They are intentionally absent.
+Plugins like `windows.info`, `windows.crashinfo`, `windows.statistics`, and `windows.virtmap` establish ground truth about the system. They do not detect adversary behaviour. Mapping them to T1082 (System Information Discovery) would mean "the adversary ran remora.py", which is absurd. They are intentionally absent.
 
 **3. Confidence levels are conservative.**
 A plugin gets `High` only if it was specifically engineered for that detection — `skeleton_key_check` → T1556.001 is `High`; `strings` → T1071 is `Low` because finding a C2 URI in strings output is circumstantial. When in doubt, `Medium`.
@@ -896,7 +896,7 @@ The following techniques are detectable only with custom Volatility3 plugins or 
 
 ## License
 
-`vol_gui.py` is released under the same licence as Volatility3 — see [LICENSE](LICENSE) in the repository root.
+`remora.py` is released under the same licence as Volatility3 — see [LICENSE](LICENSE) in the repository root.
 
 Volatility3 is copyright the Volatility Foundation and contributors.
 
