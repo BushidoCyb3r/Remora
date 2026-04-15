@@ -3,7 +3,7 @@
 Volatility3 GUI – Professional graphical frontend for Volatility3.
 
 Usage:
-    python3 vol_gui.py
+    python3 remora.py
 
 Requirements:
     pip install PyQt5
