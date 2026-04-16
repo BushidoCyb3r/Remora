@@ -145,13 +145,7 @@ git clone https://github.com/volatilityfoundation/volatility3.git
 cd volatility3
 ```
 
-### 2. Install Volatility3 Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Install GUI Dependencies
+### 2. Install GUI Dependencies
 
 ```bash
 pip install PyQt5
@@ -160,7 +154,7 @@ pip install PyQt5
 pip install openpyxl
 ```
 
-### 4. Place remora.py
+### 3. Place remora.py
 
 `remora.py` must live in the **root of the cloned Volatility3 repository** — the same directory as `vol.py` and `volshell.py`.
 
@@ -180,7 +174,7 @@ volatility3/
 └── setup.py
 ```
 
-### 5. Launch
+### 4. Launch
 
 ```bash
 python3 remora.py
