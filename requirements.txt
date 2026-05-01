@@ -1,0 +1,5 @@
+# Required
+PyQt5>=5.15
+
+# Optional — Excel (.xlsx) export
+openpyxl

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="remora-logo.png" alt="Remora logo" width="300"/>
+</p>
+
 # Remora
 
 > A professional, forensically-conscious PyQt5 graphical frontend for the [Volatility3](https://github.com/volatilityfoundation/volatility3) memory forensics framework.
@@ -8,8 +12,6 @@
 ## Table of Contents
 
 - [Overview](#overview)
-- [What's New in v2](#whats-new-in-v2)
-- [Forensic Soundness](#forensic-soundness)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Interface Layout](#interface-layout)
@@ -26,6 +28,7 @@
 - [Automatic Log Files](#automatic-log-files)
 - [Theme](#theme)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Menu Reference](#menu-reference)
 - [Directory Structure](#directory-structure)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
@@ -34,7 +37,9 @@
 
 ## Overview
 
-`remora.py` is a single-file graphical frontend that lives inside your cloned Volatility3 repository and wraps the `vol.py` and `volshell.py` entry points. It exposes every discovered plugin through a categorised, searchable browser, auto-generates argument forms, streams output into tabbed result views, writes a persistent timestamped audit log for every action, and — new in v2 — maps every plugin to the MITRE ATT&CK framework and known threat actor groups so that plugin selection and result exports are intelligence-aware from the start.
+`remora.py` is a single-file graphical frontend that lives inside your cloned Volatility3 repository and wraps the `vol.py` and `volshell.py` entry points. It exposes every discovered plugin through a categorised, searchable browser, auto-generates argument forms from each plugin's declared requirements, streams output into tabbed result views, and writes a persistent timestamped audit log for every action taken against a memory image.
+
+Every plugin is mapped to the MITRE ATT&CK framework and known threat actor groups, making plugin selection and result exports intelligence-aware from the start.
 
 **Built for:**
 
@@ -46,85 +51,6 @@
 
 ---
 
-## What's New in v2
-
-### MITRE ATT&CK Integration Throughout
-
-v2 adds a complete MITRE ATT&CK mapping layer across the entire tool:
-
-| Component | What It Does |
-|---|---|
-| **Technique / Actor Filter** | Dropdown in the plugin browser that narrows the plugin list to only those relevant to a selected technique ID or threat actor group |
-| **Coverage Matrix** | Standalone window (Tools menu) showing every mapped plugin against 10 ATT&CK tactic columns with H/M/L confidence ratings |
-| **Export metadata** | Every export format (CSV, TSV, JSON, TXT, HTML, PDF, XLSX) now embeds the MITRE techniques and matching threat actors for the plugin that produced the results |
-| **Plugin tooltips** | Hovering over a plugin in the browser shows its mapped ATT&CK techniques inline |
-
-### MITRE Data Scale
-
-| Data Set | Count |
-|---|---|
-| ATT&CK technique IDs mapped | 65 |
-| Plugin-to-technique mappings | 137 plugin keys |
-| Plugins with at least one ATT&CK mapping | 181 of 197 discovered |
-| Threat actor / group profiles | 26 |
-| High-confidence tactic cells in the matrix | 89 |
-
-### What Remora Does NOT Do
-
-Plugins that are **forensic infrastructure only** — `windows.info`, `windows.crashinfo`, `windows.statistics`, `windows.virtmap`, `windows.poolscanner`, and similar — carry **no ATT&CK mapping**. This is intentional. These plugins establish ground truth about the system; they do not detect adversary behaviour. Falsely tagging them would pollute threat-actor filters with noise.
-
----
-
-## Forensic Soundness
-
-Forensic soundness is a core design principle, not an afterthought.
-
-### Read-Only Evidence Handling
-
-- `remora.py` passes evidence files to Volatility3 exclusively via the `-f` flag
-- No write operations are performed against the image at any point
-- The tool never copies, modifies, or moves the original file
-- File name, path, and size are displayed on load so the examiner can confirm the correct image before running any plugin
-
-### Automatic Timestamped Audit Log
-
-Every action taken against a memory image is written to a plain-text log file the moment an image is loaded:
-
-- Named `<image_stem>_<YYYY-MM-DD>.log`, saved **in the same directory as the evidence**, keeping artefacts co-located with the exhibit
-- Uses full ISO 8601 timestamps (`YYYY-MM-DD HH:MM:SS`) on every entry
-- Appends across multiple sessions on the same date, with a clearly delimited session header
-- Records the exact `vol.py` command-line for every plugin invocation — results are independently reproducible by re-running the logged command verbatim
-- Records plugin completion status, row counts, and any warnings or errors
-
-```
-========================================================================
-  Session started : 2026-04-10 14:32:01
-  Image           : /cases/exhibit_001/memdump.raw
-========================================================================
-[2026-04-10 14:32:01] [SUCCESS] Loaded: /cases/exhibit_001/memdump.raw
-[2026-04-10 14:32:07] [INFO   ] → windows.malfind.Malfind
-[2026-04-10 14:32:08] [CMD    ] $ python3 vol.py -q --renderer json -f /cases/exhibit_001/memdump.raw windows.malfind.Malfind
-[2026-04-10 14:32:19] [SUCCESS] ← Malfind  14 rows
-```
-
-### Exact Command Transparency
-
-Every plugin invocation logs the full `vol.py` command including all flags. Any finding can be independently reproduced by re-running the logged command verbatim.
-
-### No Network Access
-
-`remora.py` makes no outbound network connections. All processing is local. PDB downloads (if used via the Windows symbol resolver) are a Volatility3 core function, not initiated by the GUI.
-
-### Non-Destructive Stop
-
-The **■ Stop** button terminates the running plugin process cleanly. Stopping a plugin does not affect the evidence file, does not corrupt in-progress output, and writes a `[WARNING] Plugin stopped by user.` entry to the audit log.
-
-### Output Directory Isolation
-
-Plugins that dump files (e.g. `windows.dumpfiles`) write to an explicitly specified output directory, not alongside the evidence image.
-
----
-
 ## Requirements
 
 | Dependency | Version | Notes |
@@ -133,6 +59,7 @@ Plugins that dump files (e.g. `windows.dumpfiles`) write to an explicitly specif
 | PyQt5 | ≥ 5.15 | Required |
 | Volatility3 | latest | Cloned from GitHub |
 | openpyxl | any | Optional — XLSX export only |
+| PyQt5.QtPrintSupport | included with most PyQt5 installs | Optional — PDF export only |
 
 ---
 
@@ -156,7 +83,7 @@ pip install openpyxl
 
 ### 3. Place remora.py
 
-`remora.py` must live in the **root of the cloned Volatility3 repository** — the same directory as `vol.py` and `volshell.py`.
+`remora.py` must live in the **root of the cloned Volatility3 repository** — the same directory as `vol.py` and `volshell.py`. Remora inserts its own parent directory into `sys.path` at startup so Volatility3 is importable without additional configuration.
 
 ```
 volatility3/
@@ -186,56 +113,61 @@ python3 remora.py
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  ▌ Volatility3   Memory Forensics          [image · size]  ▶ plugin  ☀ │  ← header bar
-├────────────────────────────────────────────────────────────────────────│
-│  Drop a memory image here  —  or click to browse                        │  ← drop zone
-├───────────────┬──────────────────┬─────────────────────────────────────│
-│  PLUGINS      │  CONFIGURE       │  (results tabs)                      │
+│  ▌ Volatility3   Memory Forensics    [image · size]  ▶ plugin  ☀ Light │  ← header bar (44px)
+├────────────────────────────────────────────────────────────────────────-│
+│  Drop a memory image here  —  or click to browse                        │  ← drop zone (52px)
+├───────────────┬──────────────────┬─────────────────────────────────────-│
+│  PLUGINS  [N] │  CONFIGURE       │  (results tabs)                      │
 │  ─────────    │  ─────────────── │                                      │
-│  [Filter…]    │  Plugin name     │  plugin_name  · N rows  · image.raw  │
-│  [MITRE ▾]    │  Description     │  [Filter rows…] [Columns▾] [Export▾] │
-│               │                  │  ┌──────────────────────────────┐    │
-│  ▶ WINDOWS    │  * Required arg  │  │ col1  col2  col3  col4  ...  │    │
-│     malfind   │    Optional arg  │  │ ...                          │    │
-│     pslist    │                  │  └──────────────────────────────┘    │
-│     netscan   │  OUTPUT DIR      │                                      │
-│  ▶ LINUX      │  [path…] [Browse]│                                      │
-│  ▶ MACOS      │                  │                                      │
-│  ▶ OTHER      │  [▶  Run Plugin] │  (log panel)                         │
-├───────────────┴──────────────────┴─────────────────────────────────────│
-│ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (2px progress bar)           │
-│ Ready                                    Running Malfind…  [■ Stop]     │  ← status bar
+│  [Filter…]    │  Plugin name     │  plugin · N rows · image.raw         │
+│  MITRE FILTER │  Description     │  [Filter rows…] [Columns▾] [Export▾] │
+│  [Combo ▾]    │                  │  ┌─────────────────────────────────┐ │
+│               │  * Required arg  │  │ col1   col2   col3   col4  ...  │ │
+│  ▶ WINDOWS    │    Optional arg  │  │ ...                             │ │
+│     malfind   │                  │  └─────────────────────────────────┘ │
+│     pslist    │  OUTPUT DIR      │  N rows                  timestamp   │
+│     netscan   │  [path…] [Browse]│                                      │
+│  ▶ LINUX      │                  │  ───────────────────────────────────  │
+│  ▶ MACOS      │  [▶  Run Plugin] │  LOG  → image_2026-01-01.log  [Clear]│
+│  ▶ OTHER      │                  │  [HH:MM:SS] log output...            │
+├───────────────┴──────────────────┴─────────────────────────────────────-│
+│ ░░░░░░░░░░░░░░ (2px indeterminate progress bar — visible when running)  │
+│ Ready                              Running Malfind…  [■ Stop]           │  ← status bar
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Three-pane layout with resizable splitters:
-- **Left** — Plugin browser (collapsible tree, text search, MITRE/actor filter)
-- **Centre** — Plugin configuration form (auto-generated from plugin requirements)
-- **Right** — Results tabs above, log panel below
+The window defaults to **1480 × 920** pixels. All three primary panes are separated by draggable splitters:
+
+- **Left** — Plugin browser (190–300px): categorised tree, text search, MITRE/actor filter
+- **Centre** — Plugin configuration (260–400px): auto-generated argument form, output directory, run button
+- **Right** — Vertical splitter: results tabs (top) above log panel (72–180px, bottom)
 
 ---
 
 ## Loading a Memory Image
 
-**Method 1 — Drag and drop:** Drag any supported memory image file directly onto the drop zone bar.
+**Method 1 — Drag and drop:** Drag any supported memory image file directly onto the drop zone bar. The bar highlights with an accent border on drag-enter.
 
 **Method 2 — File menu:** `File > Open Image…` (`Ctrl+O`).
+
+**Method 3 — Click the drop zone:** Clicking anywhere on the bar opens the file browser. The last-used directory is remembered between sessions.
 
 **Supported extensions:** `.dmp` `.mem` `.vmem` `.raw` `.img` `.bin` `.lime` `.dd` `.E01` `.e01`
 
 Once loaded:
-- The file name and size appear in the header bar
-- The log file is created (or opened for append) next to the evidence file
-- The **▶ Run Plugin** button becomes active
-- The drop zone label updates to confirm the load
+- The file name and size appear in green in the header bar
+- The log file is created (or appended) next to the evidence file — a session separator is written immediately
+- The **▶ Run Plugin** button activates
+- The drop zone label changes to `Image loaded — drop another to replace`
+- The status bar updates to show filename and size
 
-To load a different image, simply drag another file or use File > Open again.
+To load a different image, drag another file or use `File > Open Image…` again.
 
 ---
 
 ## Plugin Browser
 
-The plugin browser occupies the left panel. All Volatility3 plugins are discovered at startup and organised into four categories:
+The plugin browser occupies the left panel. All Volatility3 plugins are discovered at startup in a background thread (`PluginDiscoveryThread`) and organised into four categories:
 
 | Category | Contents |
 |---|---|
@@ -244,43 +176,50 @@ The plugin browser occupies the left panel. All Volatility3 plugins are discover
 | **MACOS** | All `mac.*` plugins |
 | **OTHER** | Cross-platform plugins: `timeliner`, `yarascan`, `banners`, `regexscan`, etc. |
 
+The count badge in the panel header shows the total number of plugins, or `visible/total` when any filter is active.
+
 ### Navigation
 
 - **Single-click** a plugin to load its configuration form in the centre panel
-- **Double-click** a plugin to run it immediately with default settings (image must be loaded)
-- **Right-click** a plugin for a context menu with Configure and Run options
-- The **count badge** in the panel header shows total plugins, or `visible/total` when a filter is active
+- **Double-click** a plugin to run it immediately with default settings (image must be loaded first)
+- **Right-click** a plugin for a context menu with two options: **Configure** and **Run with defaults**
 
 ### Text Search
 
-The **Filter plugins…** bar narrows the tree in real time by substring match against the full plugin name. Matching categories auto-expand; empty categories hide.
+The **Filter plugins…** bar narrows the tree in real time by substring match against the full plugin name. Matching categories auto-expand; empty categories are hidden.
+
+### Plugin Tooltips
+
+Hovering over any plugin shows a tooltip with:
+- The first line of the plugin's own docstring (truncated at 140 characters)
+- All MITRE ATT&CK technique IDs and names the plugin maps to
 
 ---
 
 ## MITRE ATT&CK / Threat Actor Filter
 
-The dropdown below the text search is the primary new feature. It filters the plugin tree to show **only plugins that map to the selected ATT&CK technique or threat actor group**.
+The dropdown below the text search filters the plugin tree to show **only plugins that map to the selected ATT&CK technique or threat actor group**.
 
 ### How to Use
 
 1. Click the dropdown — it opens with three sections:
    - `— All Plugins —` (clears the filter)
-   - **MITRE ATT&CK Techniques** — 65 technique IDs listed as `T1055  –  Process Injection`
-   - **Known Threat Actors / Groups** — 26 profiles
+   - **── MITRE ATT&CK Techniques ──** — 65 technique IDs listed as `T1055  –  Process Injection`
+   - **── Known Threat Actors / Groups ──** — 26 profiles
 
 2. Select a technique ID or actor name
-3. The plugin tree immediately filters to show only relevant plugins; the count badge updates to `visible/total`
-4. The text search and MITRE filter combine with AND logic — you can search for "scan" among APT29 plugins simultaneously
+3. The plugin tree immediately filters; the count badge updates to `visible/total`
+4. Text search and MITRE filter combine with **AND logic** — you can search for "scan" among APT29 plugins simultaneously
 
 ### Technique Filter Logic
 
-Selecting a parent technique (e.g. `T1003 – OS Credential Dumping`) also reveals plugins mapped to subtechniques (`T1003.001`, `T1003.002`, `T1003.004`, `T1003.005`). Selecting a subtechnique shows only plugins with that specific mapping.
+Selecting a technique also reveals plugins mapped to related subtechniques, and vice versa — the matching uses a `startswith` check in both directions. For example, selecting `T1003` reveals plugins mapped to `T1003.001`, `T1003.002`, `T1003.004`, and `T1003.005`. Selecting `T1003.002` shows only plugins with that specific mapping.
 
 ### Threat Actor Profiles
 
-Each threat actor profile is a set of technique IDs sourced from MITRE ATT&CK Groups and published threat reports. Selecting an actor shows all plugins relevant to **any** technique in that actor's toolkit (OR logic across techniques).
+Each threat actor profile is a set of technique IDs. Selecting an actor shows all plugins relevant to **any** technique in that actor's toolkit (OR logic across techniques within the actor's set).
 
-**Included threat actor profiles:**
+**Included threat actor profiles (26 total):**
 
 | Actor | Also Known As |
 |---|---|
@@ -292,67 +231,75 @@ Each threat actor profile is a set of technique IDs sourced from MITRE ATT&CK Gr
 | APT41 | Winnti, BARIUM, Double Dragon |
 | BlackCat / ALPHV | — |
 | Carbanak / FIN7 | Navigator Group |
-| Cl0p | — |
-| Conti | — |
+| Cl0p Ransomware | — |
+| Conti Ransomware | — |
 | DarkHotel | Tapaoux |
 | Equation Group | NSA/GCHQ-linked |
 | Gamaredon | Primitive Bear |
-| Hive | — |
+| Hive Ransomware | — |
 | Kimsuky | Thallium, Black Banshee |
-| LockBit | — |
+| LockBit Ransomware | — |
 | MuddyWater | Static Kitten |
 | NotPetya / Sandworm | GRU Unit 74455 |
 | REvil / Sodinokibi | — |
-| Ryuk | — |
+| Ryuk Ransomware | — |
 | ShadowPad | APT41-linked |
 | TA505 | Evil Corp-linked |
 | Turla | Venomous Bear, Waterbug |
 | WannaCry | Lazarus Group |
 | Winnti Group | APT41 overlap |
-| Wizard Spider | Ryuk / TrickBot operators |
+| Wizard Spider | Ryuk / TrickBot |
 
-### Plugin Tooltips
+### MITRE Data at a Glance
 
-Hovering over any plugin in the tree shows a tooltip with:
-- First line of the plugin's own docstring
-- All MITRE technique IDs and names it maps to
+| Data Set | Count |
+|---|---|
+| ATT&CK technique IDs mapped | 65 |
+| Plugin-to-technique mapping keys | 137 |
+| Threat actor / group profiles | 26 |
+
+### What Is Not Mapped
+
+Plugins that are **forensic infrastructure only** — `windows.info`, `windows.crashinfo`, `windows.statistics`, `windows.virtmap`, `windows.poolscanner`, and similar — carry **no ATT&CK mapping**. These plugins establish ground truth about the system; they do not detect adversary behaviour. Mapping them would pollute threat-actor filters with noise.
 
 ### Technical Detail — Mapping Architecture
 
-The mapping is implemented in three data structures at the top of `remora.py`:
+The mapping is implemented in four data structures near the top of `remora.py`:
 
 ```
-MITRE_TECHNIQUES   Dict[str, str]         65 technique IDs → human-readable names
-PLUGIN_MITRE_MAP   Dict[str, List[str]]   137 plugin name keys → technique ID lists
-THREAT_ACTORS      Dict[str, List[str]]   26 actor names → technique ID sets
+MITRE_TECHNIQUES        Dict[str, str]              65 technique IDs → names
+PLUGIN_MITRE_MAP        Dict[str, List[str]]        137 plugin keys → technique ID lists
+PLUGIN_MITRE_CONFIDENCE Dict[str, Dict[str, str]]   per-plugin per-technique H/M/L ratings
+THREAT_ACTORS           Dict[str, List[str]]        26 actor names → technique ID sets
+MITRE_TACTICS           Dict[str, List[str]]        10 tactic groupings → technique prefixes
 ```
 
-Plugin name keys are matched by splitting the full plugin name on `.` and comparing segments. For example, the key `"hashdump"` matches both `windows.hashdump` and `windows.registry.hashdump`. This means the mapping works automatically for aliases and nested registry plugins without requiring separate entries.
-
-Plugins that are **forensic infrastructure** (`info`, `crashinfo`, `statistics`, `virtmap`, `poolscanner`, etc.) are intentionally absent from the map — they establish system state, not adversary behaviour.
+Plugin name keys are matched by sliding a window of matching segments over the full dot-separated plugin name. For example, the key `"hashdump"` matches `windows.hashdump` and `windows.registry.hashdump` without requiring separate entries.
 
 ---
 
 ## Plugin Configuration Panel
 
-The centre panel auto-generates an argument form from each plugin's declared requirements.
+The centre panel auto-generates an argument form from each plugin's declared requirements via `cls.get_requirements()`. Infrastructure requirement types (`TranslationLayerRequirement`, `SymbolTableRequirement`, `ModuleRequirement`, `VersionRequirement`, `LayerListRequirement`, `MultiRequirement`, `PluginRequirement`) and auto-filled arguments (`single_location`, which is filled from the loaded image path) are hidden from the form.
 
 ### Field Types
 
 | Requirement Type | Widget |
 |---|---|
-| Boolean | Checkbox |
-| Integer | Spinner (full int range) |
-| Choice | Dropdown populated with valid values |
-| URI / file path | Text field + `…` browse button |
-| List | Space-separated text field |
-| String / other | Free text field with placeholder from description |
+| `BooleanRequirement` | Checkbox |
+| `IntRequirement` | Spinner (range −2³⁰ to 2³⁰) |
+| `ChoiceRequirement` | Dropdown populated with valid values; optional fields include `(any)` |
+| `URIRequirement` | Text field with `file:///path` placeholder + `…` browse button |
+| `ListRequirement` | Space-separated text field |
+| String / other | Free text field with description as placeholder |
 
-Required fields are prefixed with `*` in the label. Optional fields can be left blank.
+Required fields are prefixed with `*` in the label. Optional fields can be left blank. Each label shows a tooltip containing the requirement's description string.
+
+The plugin info block at the top of the panel displays the plugin's short name (in accent colour) and its docstring truncated at 220 characters.
 
 ### Output Directory
 
-Below the arguments form, an **Output Directory** field accepts a path for plugins that dump files (`windows.dumpfiles`, `windows.pedump`, etc.). Files are written there, not alongside the evidence image. Blank means no output directory is passed.
+Below the arguments form, an **Output Directory** field accepts a path for plugins that write dumped files (`windows.dumpfiles`, `windows.pedump`, etc.). Files are written there, not alongside the evidence image. Blank means no `-o` flag is passed.
 
 ---
 
@@ -360,7 +307,13 @@ Below the arguments form, an **Output Directory** field accepts a path for plugi
 
 ### Standard Run
 
-Click **▶ Run Plugin** in the configuration panel. The plugin executes in a background thread (`PluginRunnerThread`) via `vol.py --renderer json`, keeping the GUI responsive.
+Click **▶ Run Plugin** in the configuration panel. The plugin executes in a background thread (`PluginRunnerThread`) and runs the command:
+
+```
+python3 vol.py -q --renderer json -f <image> [--symbols <path>...] [-o <output_dir>] <plugin> [args...]
+```
+
+Execution is non-blocking — the GUI remains fully responsive while a plugin runs.
 
 ### Quick Run
 
@@ -369,57 +322,69 @@ Double-click any plugin in the browser to run it with default settings immediate
 ### While Running
 
 - The header bar shows `▶ pluginname` in amber
-- A 2-pixel indeterminate progress bar runs across the bottom of the window
-- The **■ Stop** button appears in the status bar — click it at any time to terminate the plugin process
-- All stderr output from Volatility3 streams into the log panel in real time
+- A 2-pixel indeterminate progress bar appears at the bottom of the window
+- The **■ Stop** button appears in the status bar — click it at any time to terminate the plugin process cleanly
+- All stderr output from Volatility3 streams into the log panel in real time, with lines containing the word "error" highlighted accordingly
 
 ### Running Multiple Plugins
 
-Only one plugin runs at a time. If you attempt to run a second plugin while one is active, the GUI offers to stop the current one first.
+Only one plugin runs at a time. If you attempt to run a second plugin while one is active, a dialog offers to stop the current one first. If you confirm, the running thread is aborted and the new plugin starts.
+
+### Output Parsing
+
+Remora handles several output formats from `vol.py --renderer json`:
+- JSON array of row-dicts (standard Volatility3 output)
+- JSON lines (one dict per line)
+- Single JSON dict with `"columns"` and `"rows"` keys
+- Nested records with `"__children"` (displayed with indentation in the first column)
+- Raw text fallback if JSON parsing fails entirely
 
 ---
 
 ## Results Tabs
 
-Each completed plugin run opens in a new closeable, movable tab in the right panel.
+Each completed plugin run opens in a new closeable, movable tab in the right panel. Tabs show the plugin's short name as the label.
 
 ### Tab Toolbar
 
 ```
-[plugin · N rows · image.raw]    [Filter rows…]  [Columns ▾]  [Export ▾]
+plugin · N rows · image.raw    [Filter rows…]  [Columns ▾]  [Export ▾]
 ```
 
-- **Filter rows** — full-text search across all columns; count updates live
-- **Columns** — toggle individual column visibility; hidden columns are excluded from exports
+- **Filter rows** — full-text search across all visible columns; the row count updates live
+- **Columns** — toggle individual column visibility; hidden columns are excluded from all exports
 - **Export** — opens the export format menu
 
 ### Table Features
 
-- Alternating row colours
-- Monospace font (`Cascadia Code` / `Fira Code` / `Consolas`)
+- Alternating row colours (theme-aware)
+- Monospace font: `Cascadia Code` → `Fira Code` → `JetBrains Mono` → `Consolas`
+- Row height: 26px; columns capped at 360px width; all columns sized to content on load
 - Click any column header to sort ascending/descending
-- `true` / `yes` cells highlighted green; `false` / `no` cells highlighted red; `N/A` / `None` cells muted
-- Right-click any cell for **Copy Cell**, **Copy Row (TSV)**, or direct export
+- Semantic cell colouring: `true`/`yes` → green, `false`/`no` → red, `N/A`/`None`/`-` → muted
+- Footer bar shows row count (left) and run timestamp (right)
+
+### Right-Click Context Menu
+
+Right-clicking any cell offers:
+- **Copy Cell** — copies the cell text to the clipboard
+- **Copy Row (TSV)** — copies the entire row as tab-separated values
+- Export submenu (same options as the toolbar Export button)
 
 ### Managing Tabs
 
 - Close individual tabs with the `✕` on each tab
 - **Results > Close All Tabs** clears everything and returns to the welcome screen
-- The Volshell tab (if open) is closed and the process is killed when its tab is closed
+- When all tabs are closed, the welcome screen is shown automatically
+- Closing the Volshell tab kills the volshell process
 
 ---
 
 ## Exporting Results
 
-Every result tab can be exported in seven formats. Exports respect the active column visibility and row filter — only visible columns and rows are exported.
+Every result tab can be exported in seven formats. All exports respect the **active column visibility** and **active row filter** — only visible columns and visible rows are exported.
 
-### All Exports Now Include MITRE Metadata
-
-Every export format embeds:
-- **MITRE technique IDs and names** for the plugin that produced the results
-- **Threat actor names** whose technique sets overlap with this plugin's mapping
-
-Format-specific implementation:
+Every format embeds MITRE ATT&CK metadata: technique IDs/names and threat actor names that overlap with the plugin's mapping.
 
 ---
 
@@ -429,13 +394,13 @@ Format-specific implementation:
 # Plugin: windows.malfind.Malfind
 # Image: memdump.raw
 # Timestamp: 2026-04-10 14:32:19
-# MITRE Techniques: T1055 – Process Injection; T1055.001 – DLL Injection; T1620 – Reflective Code Loading; ...
-# Threat Actors: APT28 (Fancy Bear); APT29 (Cozy Bear); APT38 / Lazarus Group; ...
+# MITRE Techniques: T1055 – Process Injection; T1055.001 – DLL Injection; ...
+# Threat Actors: APT28 (Fancy Bear); APT29 (Cozy Bear); ...
 
-PID,Process,Start VPN,End VPN,Tag,Protection,CommitCharge,...
+PID,Process,Start VPN,End VPN,...
 ```
 
-Comment lines (prefixed `#`) appear before the blank separator and the data header row. Importable into Excel / LibreOffice without issue — spreadsheet applications typically ignore `#` rows or display them without breaking the table.
+`#` comment lines appear before a blank separator and the data header. Importable into Excel and LibreOffice without issue.
 
 ---
 
@@ -455,27 +420,20 @@ Same structure as CSV: MITRE comment header block, blank line, then tab-separate
   "mitre": {
     "techniques": [
       { "id": "T1055",     "name": "Process Injection" },
-      { "id": "T1055.001", "name": "Process Injection: DLL Injection" },
-      { "id": "T1055.002", "name": "Process Injection: Portable Executable Injection" },
-      { "id": "T1055.012", "name": "Process Injection: Process Hollowing" },
-      { "id": "T1620",     "name": "Reflective Code Loading" },
-      { "id": "T1027.007", "name": "Obfuscated Files: Dynamic API Resolution" }
+      { "id": "T1055.001", "name": "Process Injection: DLL Injection" }
     ],
     "threat_actors": [
       "APT28 (Fancy Bear / Sofacy / Pawn Storm)",
-      "APT29 (Cozy Bear / The Dukes)",
-      "APT38 / Lazarus Group (Hidden Cobra)",
-      "..."
+      "APT29 (Cozy Bear / The Dukes)"
     ]
   },
   "rows": [
-    { "PID": "1234", "Process": "svchost.exe", ... },
-    ...
+    { "PID": "1234", "Process": "svchost.exe", ... }
   ]
 }
 ```
 
-The `"mitre"` block is machine-parseable and suitable for ingestion into SIEMs, case management tools, or threat intel platforms.
+The `"mitre"` block is machine-parseable for ingestion into SIEMs or case management tools.
 
 ---
 
@@ -486,40 +444,38 @@ Plugin    : windows.malfind.Malfind
 Image     : /cases/exhibit_001/memdump.raw
 Timestamp : 2026-04-10 14:32:19
 Rows      : 14
-MITRE     : T1055 – Process Injection; T1055.001 – DLL Injection; T1620 – Reflective Code Loading
-Actors    : APT28 (Fancy Bear); APT29 (Cozy Bear); APT38 / Lazarus Group; APT41 (Winnti)
-            Carbanak / FIN7; Conti Ransomware; LockBit Ransomware; ...
+MITRE     : T1055 – Process Injection; T1055.001 – DLL Injection; ...
+Actors    : APT28 (Fancy Bear); APT29 (Cozy Bear); APT38 / Lazarus Group; ...
+            Carbanak / FIN7; Conti Ransomware; ...
 
-PID       Process       Start VPN          End VPN            Tag    Protection
---------- ------------- ------------------ ------------------ ------ ----------
-...
+PID       Process       Start VPN          End VPN            ...
+--------- ------------- ------------------ ------------------ ...
 ```
 
-Actor names wrap onto continuation lines (indented) when there are more than four. Suitable for copy-paste into reports or attaching as exhibit documentation.
+Actor names wrap onto continuation lines (indented) at four per line. Suitable for copy-paste into reports or as an exhibit attachment.
 
 ---
 
 ### HTML
 
-A self-contained, dark-themed HTML report. remora adds a **MITRE badge section** above the data table:
+A self-contained, dark-themed HTML report with no external CSS or JavaScript dependencies. A **MITRE badge section** appears above the data table when the plugin has ATT&CK mappings:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  MITRE ATT&CK   [T1055] [T1055.001] [T1055.002] [T1620] [...]  │
-│  Threat Actors  [APT28] [APT29] [APT38] [Carbanak] [...]        │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  MITRE ATT&CK   [T1055] [T1055.001] [T1055.002] [T1620] [...]   │
+│  Threat Actors  [APT28] [APT29] [APT38] [Carbanak] [...]         │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-- Technique IDs render as dark-blue monospace chips; hovering shows the full technique name
+- Technique IDs render as dark-blue monospace chips; hovering shows the full technique name as a browser tooltip
 - Threat actor names render as dark-red chips
-- The badge section only appears if the plugin has at least one ATT&CK mapping
-- Self-contained: no external CSS or JavaScript dependencies
+- The badge section is omitted entirely if the plugin has no ATT&CK mapping
 
 ---
 
 ### PDF
 
-Rendered via Qt print support. v2 adds a small metadata table above the results grid:
+Rendered via `QPrinter` (Qt print support). A metadata table appears above the results grid:
 
 ```
 windows.malfind.Malfind
@@ -531,15 +487,15 @@ Threat Actors      APT28 (Fancy Bear); APT29 (Cozy Bear); ...
 PID    Process       Start VPN    ...
 ```
 
-Requires `PyQt5.QtPrintSupport` (usually included in a standard PyQt5 installation).
+Output is A4, landscape orientation. The PDF export menu item is disabled (greyed out) if `PyQt5.QtPrintSupport` is not available.
 
 ---
 
 ### XLSX (Excel)
 
-v2 adds two enhancements to the Excel export:
+Requires `pip install openpyxl`.
 
-**1. Extended metadata header rows** in the main data sheet:
+**Main data sheet** — named after the plugin's short name — contains styled metadata rows above the data:
 
 | Row | Label | Value |
 |---|---|---|
@@ -547,29 +503,28 @@ v2 adds two enhancements to the Excel export:
 | 2 | Image | `/cases/exhibit_001/memdump.raw` |
 | 3 | Timestamp | `2026-04-10 14:32:19` |
 | 4 | Rows | `14` |
-| 5 | MITRE Techniques | `T1055 – Process Injection; T1055.001 – ...` |
-| 6 | Threat Actors | `APT28 (Fancy Bear); APT29 (Cozy Bear); ...` |
+| 5 | MITRE Techniques | `T1055 – Process Injection; ...` |
+| 6 | Threat Actors | `APT28 (Fancy Bear); ...` |
 | 7 | *(blank)* | |
 | 8+ | *(column headers + data)* | |
 
-**2. A dedicated "MITRE Coverage" sheet** is added automatically when the plugin has ATT&CK mappings:
+Column widths are auto-sized (capped at 50 characters). Cells use the dark theme colour palette.
+
+**"MITRE Coverage" sheet** — added automatically when the plugin has ATT&CK mappings:
 
 | Column A | Column B |
 |---|---|
 | Plugin | `windows.malfind.Malfind` |
 | Timestamp | `2026-04-10 14:32:19` |
-| *(blank)* | |
+| | |
 | Technique ID | Technique Name |
 | T1055 | Process Injection |
 | T1055.001 | Process Injection: DLL Injection |
 | ... | |
-| *(blank)* | |
+| | |
 | Threat Actors | |
 | APT28 (Fancy Bear / Sofacy / Pawn Storm) | |
-| APT29 (Cozy Bear / The Dukes) | |
 | ... | |
-
-Requires `pip install openpyxl`.
 
 ---
 
@@ -577,13 +532,13 @@ Requires `pip install openpyxl`.
 
 **Tools > MITRE Coverage Matrix…** (`Ctrl+Shift+M`)
 
-Opens a standalone window showing every Volatility3 plugin that has an ATT&CK mapping, displayed as a grid against 10 ATT&CK tactic columns.
+Opens a standalone window (1280 × 820) showing every Volatility3 plugin that has an ATT&CK mapping, displayed as a grid against 10 ATT&CK tactic columns.
 
 ### What It Shows
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────┐
-│  MITRE ATT&CK COVERAGE MATRIX     ● H = primary   ◉ M = secondary   ○ L = circumstantial  │
+│  MITRE ATT&CK COVERAGE MATRIX   ● H = primary   ◉ M = secondary   ○ L = circumstantial │
 │  [Filter plugins…]  [All Tactics ▾]  [All Confidence ▾]  [Export CSV ▾]             │
 ├──────────────────────────────┬─────────┬──────┬───────┬───────┬──────┬───────┬──────┤
 │ Plugin                       │ OS      │ Exec │ Perst │ PrivE │ DefE │ Cred  │ Disc │
@@ -592,7 +547,6 @@ Opens a standalone window showing every Volatility3 plugin that has an ATT&CK ma
 │ windows.hashdump.Hashdump    │ Win     │      │       │       │      │ ● H   │      │
 │ windows.netscan.NetScan      │ Win     │      │       │       │      │       │ ● H  │
 │ linux.check_syscall.Check_.. │ Linux   │      │       │       │ ● H  │       │      │
-│ ...                          │ ...     │      │       │       │      │       │      │
 └──────────────────────────────┴─────────┴──────┴───────┴───────┴──────┴───────┴──────┘
 │ 181 plugins mapped                                                                   │
 └──────────────────────────────────────────────────────────────────────────────────────┘
@@ -600,14 +554,14 @@ Opens a standalone window showing every Volatility3 plugin that has an ATT&CK ma
 
 ### Confidence Levels
 
-Each cell shows the **highest confidence level** among the techniques the plugin maps to within that tactic column:
+Each tactic cell shows the **highest confidence level** among the techniques the plugin maps to within that tactic column:
 
-| Symbol | Level | Meaning |
-|---|---|---|
-| `● H` | High | Plugin was specifically engineered to detect this technique (e.g. `skeleton_key_check` → T1556.001, `malfind` → T1055) |
-| `◉ M` | Medium | Strong secondary signal — the plugin reveals reliable evidence of this technique but it is not the primary purpose (e.g. `netscan` revealing C2 connections → T1071) |
-| `○ L` | Low | Circumstantial or indirect evidence only (e.g. `strings` revealing C2 URIs → T1071) |
-| *(blank)* | None | No mapping for this tactic |
+| Symbol | Level | Meaning | Colour |
+|---|---|---|---|
+| `● H` | High | Plugin was specifically engineered for this detection | Red/accent |
+| `◉ M` | Medium | Strong secondary signal (default when not explicitly rated) | Amber |
+| `○ L` | Low | Circumstantial or indirect evidence only | Muted |
+| *(blank)* | None | No mapping for this tactic | — |
 
 ### Tactic Columns
 
@@ -626,30 +580,15 @@ Each cell shows the **highest confidence level** among the techniques the plugin
 
 ### Filtering the Matrix
 
-- **Text search** — filter by plugin name
-- **Tactic dropdown** — show only plugins with coverage in a specific tactic; confidence filter applies only to that column
-- **Confidence dropdown** — `High only` / `High + Medium` / `All Confidence`
+All three filters combine with AND logic:
 
-All three filters combine with AND logic.
+- **Text search** — filter by plugin name substring
+- **Tactic dropdown** — show only plugins with any coverage in the selected tactic; the confidence filter applies to that tactic column only
+- **Confidence dropdown** — `All Confidence` / `High only` / `High + Medium`
 
 ### Exporting the Matrix
 
-Click **Export CSV ▾** to save the currently visible matrix as a CSV file. Cells contain raw `H`, `M`, `L`, or blank — not the display symbols — for easy downstream processing.
-
-**Coverage summary** (from 197 discovered plugins):
-
-| Tactic | Plugins Mapped |
-|---|---|
-| Defence Evasion | 92 |
-| Discovery | 63 |
-| Privilege Escalation | 43 |
-| Execution | 25 |
-| Credential Access | 16 |
-| Persistence | 14 |
-| Collection | 9 |
-| C2 | 6 |
-| Lateral Movement | 4 |
-| Impact | 1 |
+Click **Export CSV ▾** to save the currently visible matrix. Cells contain raw `H`, `M`, `L`, or blank — not the display symbols — for downstream processing.
 
 ---
 
@@ -661,9 +600,11 @@ Volatility3 requires ISF (Intermediate Symbol Format) JSON files to analyse Linu
 
 1. Open **Symbols > Linux Symbol Tables** or **Symbols > macOS Symbol Tables**
 2. Choose **Add Symbol Table File(s)…** to select one or more `.json` / `.json.gz` / `.isf` / `.isf.gz` files, or **Add Symbol Table Directory…** to point at a folder
-3. The menu updates to show how many paths are loaded (`Loaded: N path(s) — view…`)
+3. The menu item updates to show `Loaded: N path(s) — view…` — click it to see all loaded paths in a dialog
 4. All subsequent plugin runs automatically include `--symbols <path>` for each loaded path
-5. Use **Clear Linux Symbols** / **Clear macOS Symbols** / **Clear All Custom Symbols** to remove paths
+5. Use **Clear Linux Symbols**, **Clear macOS Symbols**, or **Clear All Custom Symbols** to remove paths
+
+The last-used symbol directory is remembered between sessions.
 
 ### Generating Symbol Tables
 
@@ -685,12 +626,12 @@ Pre-built tables are also available from the [Volatility3 symbols repository](ht
 
 **Tools > Open Volshell…** (`Ctrl+Shift+S`)
 
-Opens an interactive Python REPL tab with direct access to Volatility3's layer, context, and symbol APIs against the loaded image.
+Opens an interactive Python REPL tab backed by `volshell.py`, giving direct access to Volatility3's layer, context, and symbol APIs against the loaded image. Communication with the process uses Qt's `QProcess` with merged stdout/stderr.
 
 ### Requirements
 
 - A memory image must be loaded before opening Volshell
-- Only one Volshell tab can be open at a time; re-invoking the menu item switches to the existing tab
+- Only one Volshell tab can be open at a time; invoking the menu item while one exists switches focus to it rather than opening a second
 
 ### Using Volshell
 
@@ -710,9 +651,9 @@ print(ps.ImageFileName, hex(ps.obj_offset))
 krnl = context.modules["kernel"]
 ```
 
-**Command history:** Up / Down arrow keys in the input bar cycle through previously entered commands within the session.
+**Command history:** The ↑ / ↓ arrow keys in the input bar cycle through previously entered commands within the current session.
 
-**Controls in the tab toolbar:**
+### Tab Toolbar Controls
 
 | Button | Action |
 |---|---|
@@ -733,14 +674,16 @@ A log file is created the moment a memory image is loaded. No configuration requ
 <image_stem>_<YYYY-MM-DD>.log
 ```
 
-Saved **next to the evidence image**:
+Saved **next to the evidence image**, keeping artefacts co-located with the exhibit:
 
 | Image Path | Log Path |
 |---|---|
 | `/cases/exhibit_001/memdump.raw` | `/cases/exhibit_001/memdump_2026-04-10.log` |
 | `/mnt/evidence/WIN10.vmem` | `/mnt/evidence/WIN10_2026-04-10.log` |
 
-### Append Behaviour
+Non-filesystem-safe characters in the image stem are replaced with `_`.
+
+### Session Separators
 
 If the same image is re-examined on the same date, entries are appended. Each session is delimited:
 
@@ -749,6 +692,18 @@ If the same image is re-examined on the same date, entries are appended. Each se
   Session started : 2026-04-10 09:14:22
   Image           : /cases/exhibit_001/memdump.raw
 ========================================================================
+```
+
+### Entry Format
+
+Every log entry uses full ISO 8601 timestamps and a fixed-width level tag:
+
+```
+[2026-04-10 14:32:01] [SUCCESS] Loaded: /cases/exhibit_001/memdump.raw
+[2026-04-10 14:32:07] [INFO   ] → windows.malfind.Malfind
+[2026-04-10 14:32:08] [CMD    ] $ python3 vol.py -q --renderer json -f /cases/exhibit_001/memdump.raw windows.malfind.Malfind
+[2026-04-10 14:32:19] [SUCCESS] ← Malfind  14 rows
+[2026-04-10 14:35:01] [WARNING] Plugin stopped by user.
 ```
 
 ### Log Levels
@@ -762,19 +717,25 @@ If the same image is re-examined on the same date, entries are appended. Each se
 | `ERROR` | Volatility3 error output, process failures |
 | `DEBUG` | Verbose Volatility3 stderr |
 
-### Log Panel
+### In-GUI Log Panel
 
-The in-GUI log panel at the bottom of the window mirrors log entries in real time with colour-coded severity. **Results > Clear Log** clears the in-GUI display; the file on disk is not affected.
+The log panel mirrors entries in real time with colour-coded severity. The current log filename is shown in the panel header. **Results > Clear Log** (or the **Clear** button) clears the in-GUI display only — the file on disk is not affected.
+
+Log writes fail silently (with a `pass`) if the evidence directory is read-only, to avoid crashing the GUI.
 
 ---
 
 ## Theme
 
-The header bar **☀ Light mode / 🌙 Dark mode** button toggles between two palettes. The chosen theme persists between sessions via `QSettings`.
+The **☀ Light mode / 🌙 Dark mode** toggle button in the header bar switches between two palettes. The chosen theme is persisted between sessions via `QSettings`.
 
-**Dark theme** (default): Deep blue-grey backgrounds modelled after JetBrains Darcula / VS Code One Dark Pro. High-contrast readable text throughout.
+**Dark (default):** Deep blue-grey backgrounds modelled after JetBrains Darcula / VS Code One Dark Pro. Background `#2b2d3e`, elevated surfaces `#3c3f55`, accent `#e05472`. All text is readable at all hierarchy levels.
 
-**Light theme**: Clean neutral white-grey. All semantic colours (success green, warning amber, error red) adjust automatically.
+**Light:** Clean neutral white-grey. Background `#f7f8fc`, elevated `#ffffff`, accent `#c8304a`.
+
+On theme toggle, all open result tabs, browser category items, and the Coverage Matrix (if open) are restyles immediately without requiring a restart.
+
+The application font is `Segoe UI` / `SF Pro Text` / `Inter` / `Ubuntu` at 10pt. Monospace areas use `Cascadia Code` / `Fira Code` / `JetBrains Mono` / `Consolas`.
 
 ---
 
@@ -791,6 +752,27 @@ The header bar **☀ Light mode / 🌙 Dark mode** button toggles between two pa
 
 ---
 
+## Menu Reference
+
+| Menu | Item | Shortcut | Action |
+|---|---|---|---|
+| **File** | Open Image… | `Ctrl+O` | Open a memory image via file browser |
+| **File** | Exit | `Ctrl+Q` | Close the application |
+| **Symbols** | Linux Symbol Tables > Add Symbol Table File(s)… | — | Add .json/.json.gz/.isf/.isf.gz files for Linux analysis |
+| **Symbols** | Linux Symbol Tables > Add Symbol Table Directory… | — | Add a directory of Linux symbol tables |
+| **Symbols** | Linux Symbol Tables > Loaded: N path(s) — view… | — | Display loaded Linux symbol paths |
+| **Symbols** | Linux Symbol Tables > Clear Linux Symbols | — | Remove all Linux symbol paths |
+| **Symbols** | macOS Symbol Tables > (same structure) | — | Same as Linux, for macOS |
+| **Symbols** | Clear All Custom Symbols | — | Remove all Linux and macOS symbol paths |
+| **Results** | Close All Tabs | — | Close all result tabs and show welcome screen |
+| **Results** | Clear Log | — | Clear the in-GUI log display (file unaffected) |
+| **Plugins** | Refresh Plugin List | `F5` | Re-run plugin discovery |
+| **Tools** | Open Volshell… | `Ctrl+Shift+S` | Open interactive Volshell tab |
+| **Tools** | MITRE Coverage Matrix… | `Ctrl+Shift+M` | Open the coverage matrix window |
+| **Help** | About | — | Show version info dialog |
+
+---
+
 ## Directory Structure
 
 After setup your repository root will look like this:
@@ -799,7 +781,7 @@ After setup your repository root will look like this:
 volatility3/
 ├── vol.py                      ← Volatility3 CLI
 ├── volshell.py                 ← Volatility3 interactive shell
-├── remora.py                  ← GUI frontend (this tool)
+├── remora.py                   ← GUI frontend (this tool)
 ├── requirements.txt
 ├── setup.py
 ├── volatility3/
@@ -816,6 +798,35 @@ volatility3/
 
 ---
 
+## Forensic Soundness
+
+Forensic soundness is a core design principle, not an afterthought.
+
+### Read-Only Evidence Handling
+
+- `remora.py` passes evidence files to Volatility3 exclusively via the `-f` flag
+- No write operations are performed against the image at any point
+- The tool never copies, modifies, or moves the original file
+- File name and size are displayed on load so the examiner can confirm the correct image before running any plugin
+
+### Exact Command Transparency
+
+Every plugin invocation logs the full `vol.py` command including all flags. Any finding can be independently reproduced by re-running the logged command verbatim.
+
+### Non-Destructive Stop
+
+The **■ Stop** button terminates the running plugin process via `proc.terminate()`. Stopping a plugin does not affect the evidence file, does not corrupt in-progress output, and writes a `[WARNING] Plugin stopped by user.` entry to the audit log.
+
+### Output Directory Isolation
+
+Plugins that dump files (e.g. `windows.dumpfiles`) write to an explicitly specified output directory, not alongside the evidence image.
+
+### No Network Access
+
+`remora.py` makes no outbound network connections. All processing is local. PDB downloads (if used via the Windows symbol resolver) are a Volatility3 core function, not initiated by Remora.
+
+---
+
 ## Troubleshooting
 
 ### `ERROR: PyQt5 is required`
@@ -826,7 +837,7 @@ pip install PyQt5
 
 ### No plugins appear in the browser
 
-Ensure you are running `remora.py` from inside the cloned `volatility3/` directory. The script inserts its own parent directory into `sys.path` at startup, but Volatility3 must be importable from your Python environment.
+Ensure you are running `remora.py` from inside the cloned `volatility3/` directory — specifically that `vol.py` and `volshell.py` exist in the same folder. Press `F5` to retry plugin discovery. Check the log panel for the specific import error message.
 
 ### Linux/macOS plugins fail with `No symbol table`
 
@@ -834,7 +845,7 @@ You need a matching ISF symbol file for the target kernel. Load it via **Symbols
 
 ### MITRE filter shows no plugins for a technique
 
-A small number of techniques only map to a few plugins. Try the parent technique (e.g. select `T1003` rather than `T1003.001`). Also check that plugin discovery completed — press `F5` to refresh if the list is empty.
+A small number of techniques only map to a few plugins. Try the parent technique (e.g. select `T1003` rather than `T1003.001`). Also confirm that plugin discovery completed — the status bar should show a plugin count. Press `F5` to refresh if the list is empty.
 
 ### MITRE Coverage Matrix is empty
 
@@ -848,7 +859,7 @@ pip install PyQt5        # full install usually includes print support
 apt install python3-pyqt5.qtprintsupport
 ```
 
-### XLSX export unavailable
+### XLSX export shows `pip install openpyxl`
 
 ```bash
 pip install openpyxl
@@ -856,11 +867,19 @@ pip install openpyxl
 
 ### Volshell tab shows `Failed to start volshell.py`
 
-Confirm `volshell.py` exists in the same directory as `remora.py` and that Volatility3's dependencies are fully installed (`pip install -r requirements.txt`).
+Confirm `volshell.py` exists in the same directory as `remora.py` and that Volatility3's dependencies are fully installed:
+
+```bash
+pip install -r requirements.txt
+```
 
 ### Log file not created
 
-The log file is written next to the evidence image. If that directory is read-only (e.g. a mounted ISO or write-protected share), log writes silently fail to avoid crashing the GUI. Copy the image to a writable location, or check permissions.
+The log file is written next to the evidence image. If that directory is read-only (e.g. a mounted ISO or write-protected share), log writes silently fail to avoid crashing the GUI. Copy the image to a writable location, or check directory permissions.
+
+### Theme reverts to dark on every launch
+
+Theme preference is stored via `QSettings` under the organisation name `vol3gui`. On Linux this is typically `~/.config/vol3gui/prefs.conf`. If the file is not writable, the preference cannot be saved.
 
 ---
 
@@ -869,16 +888,16 @@ The log file is written next to the evidence image. If that directory is read-on
 The mapping was built with the following principles:
 
 **1. Map what the plugin detects, not what it is.**
-A plugin like `netscan` is used by the analyst. What it *detects evidence of* is adversary network activity (T1049, T1071, T1021). The mapping reflects the adversary technique, not the analyst action.
+`netscan` is used by the analyst. What it *detects evidence of* is adversary network activity (T1049, T1071, T1021). The mapping reflects the adversary technique, not the analyst action.
 
 **2. Forensic infrastructure has no mapping.**
-Plugins like `windows.info`, `windows.crashinfo`, `windows.statistics`, and `windows.virtmap` establish ground truth about the system. They do not detect adversary behaviour. Mapping them to T1082 (System Information Discovery) would mean "the adversary ran remora.py", which is absurd. They are intentionally absent.
+Plugins like `windows.info`, `windows.crashinfo`, `windows.statistics`, and `windows.virtmap` establish ground truth about the system. They do not detect adversary behaviour. Mapping them to T1082 (System Information Discovery) would mean "the adversary ran remora.py", which is incorrect. They are intentionally absent.
 
 **3. Confidence levels are conservative.**
-A plugin gets `High` only if it was specifically engineered for that detection — `skeleton_key_check` → T1556.001 is `High`; `strings` → T1071 is `Low` because finding a C2 URI in strings output is circumstantial. When in doubt, `Medium`.
+A plugin gets `High` only if it was specifically engineered for that detection — `skeleton_key_check` → T1556.001 is `High`; `strings` → T1071 is `Low` because finding a C2 URI in strings output is circumstantial. The default confidence when no explicit entry exists in `PLUGIN_MITRE_CONFIDENCE` is `Medium`.
 
-**4. Parent technique selection cascades to subtechniques.**
-Selecting T1003 in the filter reveals plugins mapped to T1003, T1003.001, T1003.002, T1003.004, and T1003.005. Selecting T1003.002 shows only SAM-specific plugins. This mirrors how ATT&CK itself is structured.
+**4. Parent technique selection cascades.**
+Selecting T1003 in the filter reveals plugins mapped to T1003, T1003.001, T1003.002, T1003.004, and T1003.005. This mirrors how ATT&CK itself is structured.
 
 **5. Known gaps.**
 The following techniques are detectable only with custom Volatility3 plugins or manual VAD analysis — no native plugin maps to them currently:
@@ -890,9 +909,9 @@ The following techniques are detectable only with custom Volatility3 plugins or 
 
 ## License
 
-`remora.py` is released under the same licence as Volatility3 — see [LICENSE](LICENSE) in the repository root.
+Remora is released under the [MIT License](LICENSE). Copyright (c) 2026 BushidoCyb3r.
 
-Volatility3 is copyright the Volatility Foundation and contributors.
+Volatility3 is copyright the Volatility Foundation and contributors, distributed under its own license — see the [Volatility3 repository](https://github.com/volatilityfoundation/volatility3) for details.
 
 MITRE ATT&CK® is a registered trademark of The MITRE Corporation. Technique descriptions and actor profiles are derived from the publicly available ATT&CK knowledge base.
 
