@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="remora-logo.png" alt="Remora logo" width="300"/>
+  <img src="remora-logo.png" alt="Remora logo" width="500"/>
 </p>
 
 # Remora
